@@ -172,16 +172,16 @@ class pdf_azur extends ModelePDFPropales
 		if (!empty($conf->global->PRODUCT_USE_UNITS)) {
 			$this->posxtva = 101;
 			$this->posxup = 118;
-			$this->posxqty = 135;
+			$this->posxqty = 134;
 			$this->posxunit = 151;
 		} else {
 			$this->posxtva = 106;
 			$this->posxup = 122;
-			$this->posxqty = 145;
+			$this->posxqty = 144;
 			$this->posxunit = 162;
 		}
 		$this->posxdiscount = 162;
-		$this->postotalht = 174;
+		$this->postotalht = 180;
 		if (!empty($conf->global->MAIN_GENERATE_DOCUMENTS_WITHOUT_VAT) || !empty($conf->global->MAIN_GENERATE_DOCUMENTS_WITHOUT_VAT_COLUMN)) {
 			$this->posxtva = $this->posxup;
 		}
@@ -201,7 +201,8 @@ class pdf_azur extends ModelePDFPropales
 		$this->localtax1 = array();
 		$this->localtax2 = array();
 		$this->atleastoneratenotnull = 0;
-		$this->atleastonediscount = 0;
+		//we use discount column for another purpose
+		$this->atleastonediscount = 1;
 	}
 
 	// phpcs:disable PEAR.NamingConventions.ValidFunctionName.ScopeNotCamelCaps
@@ -494,7 +495,7 @@ class pdf_azur extends ModelePDFPropales
 
 				$iniY = $tab_top + 7;
 				$curY = $tab_top + 7;
-				$nexY = $tab_top + 7;
+				$nexY = $tab_top + 12;
 
 				// Loop on each lines
 				for ($i = 0; $i < $nblines; $i++) {
@@ -544,16 +545,24 @@ class pdf_azur extends ModelePDFPropales
 						$posYAfterImage = $curY + $imglinesize['height'];
 					}
 
-					// Description of product line
-					$curX = $this->posxdesc - 1;
+
+					
+					$curX = $this->posxdesc - 1 + 10;
 
 					$pdf->startTransaction();
+					// Index line
+					$pdf->SetXY($this->posxdesc - 1, $curY);
+					$pdf->MultiCell($this->posxdesc - 1, 3, $i+1, 0, 'R');
+					// Description of product line
 					pdf_writelinedesc($pdf, $object, $i, $outputlangs, $this->posxpicture - $curX, 3, $curX, $curY, $hideref, $hidedesc);
 					$pageposafter = $pdf->getPage();
 					if ($pageposafter > $pageposbefore) {	// There is a pagebreak
 						$pdf->rollbackTransaction(true);
 						$pageposafter = $pageposbefore;
 						//print $pageposafter.'-'.$pageposbefore;exit;
+						// Index line
+						$pdf->SetXY($this->posxdesc - 1, $curY);
+						$pdf->MultiCell($this->posxdesc - 1, 3, $i+1, 0, 'R');
 						$pdf->setPageOrientation('', 1, $heightforfooter); // The only function to edit the bottom margin of current page to set it.
 						pdf_writelinedesc($pdf, $object, $i, $outputlangs, $this->posxpicture - $curX, 3, $curX, $curY, $hideref, $hidedesc);
 
@@ -609,35 +618,44 @@ class pdf_azur extends ModelePDFPropales
 						$pdf->MultiCell($this->posxup - $this->posxtva + 4, 3, $vat_rate, 0, 'R');
 					}
 
-					// Unit price before discount
-					$up_excl_tax = pdf_getlineupexcltax($object, $i, $outputlangs, $hidedetails);
-					$pdf->SetXY($this->posxup, $curY);
-					$pdf->MultiCell($this->posxqty - $this->posxup - 0.8, 3, $up_excl_tax, 0, 'R', 0);
-
 					// Quantity
 					$qty = pdf_getlineqty($object, $i, $outputlangs, $hidedetails);
+					$pdf->SetXY($this->posxup, $curY);
+					$pdf->MultiCell($this->posxqty - $this->posxup - 0.8, 3, $qty, 0, 'R', 0);
+
+					
+					// Unit price before discount
+					$up_excl_tax = pdf_getlineupexcltax($object, $i, $outputlangs, $hidedetails);
 					$pdf->SetXY($this->posxqty, $curY);
-					$pdf->MultiCell($this->posxunit - $this->posxqty - 0.8, 4, $qty, 0, 'R'); // Enough for 6 chars
+					$pdf->MultiCell($this->posxunit - $this->posxqty - 0.8, 4, $up_excl_tax, 0, 'R'); // Enough for 6 chars
 
 					// Unit
 					if (!empty($conf->global->PRODUCT_USE_UNITS)) {
 						$unit = pdf_getlineunit($object, $i, $outputlangs, $hidedetails, $hookmanager);
 						$pdf->SetXY($this->posxunit, $curY);
-						$pdf->MultiCell($this->posxdiscount - $this->posxunit - 0.8, 4, $unit, 0, 'L');
+						$pdf->MultiCell($this->posxdiscount - $this->posxunit - 0.8, 4, 1, 0, 'L');
 					}
 
 					// Discount on line
-					$pdf->SetXY($this->posxdiscount, $curY);
-					if ($object->lines[$i]->remise_percent) {
-						$pdf->SetXY($this->posxdiscount - 2, $curY);
-						$remise_percent = pdf_getlineremisepercent($object, $i, $outputlangs, $hidedetails);
-						$pdf->MultiCell($this->postotalht - $this->posxdiscount + 2, 3, $remise_percent, 0, 'R');
-					}
+					// $pdf->SetXY($this->posxdiscount, $curY);
+					// if ($object->lines[$i]->remise_percent) {
+					// 	$pdf->SetXY($this->posxdiscount - 2, $curY);
+					// 	$remise_percent = pdf_getlineremisepercent($object, $i, $outputlangs, $hidedetails);
+					// 	$pdf->MultiCell($this->postotalht - $this->posxdiscount + 2, 3, $remise_percent, 0, 'R');
+					// }
 
 					// Total HT line
 					$total_excl_tax = pdf_getlinetotalexcltax($object, $i, $outputlangs, $hidedetails);
-					$pdf->SetXY($this->postotalht, $curY);
-					$pdf->MultiCell($this->page_largeur - $this->marge_droite - $this->postotalht, 3, $total_excl_tax, 0, 'R', 0);
+					$pdf->SetXY($this->posxdiscount, $curY);
+					$pdf->SetXY($this->posxdiscount - 2, $curY);
+					//$pdf->SetXY($this->postotalht, $curY);
+					//$pdf->MultiCell($this->page_largeur - $this->marge_droite - $this->postotalht, 3, $total_excl_tax, 0, 'R', 0);
+					$pdf->MultiCell($this->postotalht - $this->posxdiscount + 2, 3, $total_excl_tax, 0, 'R');
+
+					/*TOTAL TTC ligne produit*/
+					$total_incl_tax = pdf_getlinetotalincltax($object, $i, $outputlangs, $hidedetails);
+					$pdf->SetXY ($this->postotalht, $curY);
+					$pdf->MultiCell($this->page_largeur - $this->marge_droite - $this->postotalht, 3, $total_incl_tax, 0, 'R', 0);
 
 					// Collecte des totaux par valeur de tva dans $this->tva["taux"]=total_tva
 					if (!empty($conf->multicurrency->enabled) && $object->multicurrency_tx != 1) {
@@ -709,7 +727,7 @@ class pdf_azur extends ModelePDFPropales
 						$pdf->SetLineStyle(array('dash'=>0));
 					}
 
-					$nexY += 2; // Add space between lines
+					$nexY += 2; // Add space between lines 
 
 					// Detect if some page were added automatically and output _tableau for past pages
 					while ($pagenb < $pageposafter) {
@@ -1382,7 +1400,7 @@ class pdf_azur extends ModelePDFPropales
 
 			//$conf->global->MAIN_PDF_TITLE_BACKGROUND_COLOR='230,230,230';
 			if (!empty($conf->global->MAIN_PDF_TITLE_BACKGROUND_COLOR)) {
-				$pdf->Rect($this->marge_gauche, $tab_top, $this->page_largeur - $this->marge_droite - $this->marge_gauche, 5, 'F', null, explode(',', $conf->global->MAIN_PDF_TITLE_BACKGROUND_COLOR));
+				$pdf->Rect($this->marge_gauche, $tab_top, $this->page_largeur - $this->marge_droite - $this->marge_gauche, 10, 'F', null, explode(',', $conf->global->MAIN_PDF_TITLE_BACKGROUND_COLOR));
 			}
 		}
 
@@ -1393,17 +1411,25 @@ class pdf_azur extends ModelePDFPropales
 		$this->printRect($pdf, $this->marge_gauche, $tab_top, $this->page_largeur - $this->marge_gauche - $this->marge_droite, $tab_height, $hidetop, $hidebottom); // Rect takes a length in 3rd parameter and 4th parameter
 
 		if (empty($hidetop)) {
-			$pdf->line($this->marge_gauche, $tab_top + 5, $this->page_largeur - $this->marge_droite, $tab_top + 5); // line takes a position y in 2nd parameter and 4th parameter
+			$pdf->line($this->posxdesc -1 + 10, $tab_top, $this->posxdesc - 1 + 10, $tab_top + $tab_height);
 
 			$pdf->SetXY($this->posxdesc - 1, $tab_top + 1);
-			$pdf->MultiCell(108, 2, $outputlangs->transnoentities("Designation"), '', 'L');
+			$pdf->MultiCell($this->posxdesc, 2, $outputlangs->transnoentities("RowIndex"), '', 'C');
+		}
+
+		if (empty($hidetop)) {
+			//$pdf->line($this->marge_gauche, $tab_top + 5, $this->page_largeur - $this->marge_droite, $tab_top + 5); // line takes a position y in 2nd parameter and 4th parameter
+
+			$pdf->SetXY($this->posxdesc - 1, $tab_top + 1);
+			$pdf->MultiCell(100, 2, $outputlangs->transnoentities("Designation"), '', 'C');
 		}
 
 		if (!empty($conf->global->MAIN_GENERATE_PROPOSALS_WITH_PICTURE)) {
 			$pdf->line($this->posxpicture - 1, $tab_top, $this->posxpicture - 1, $tab_top + $tab_height);
+			$pdf->MultiCell($this->posxup - $this->posxtva + 3, 2, $outputlangs->transnoentities("VAT"), '', 'C');
 			if (empty($hidetop)) {
-				//$pdf->SetXY($this->posxpicture-1, $tab_top+1);
-				//$pdf->MultiCell($this->posxtva-$this->posxpicture-1,2, $outputlangs->transnoentities("Photo"),'','C');
+				$pdf->SetXY($this->posxpicture-1, $tab_top+1);
+				$pdf->MultiCell($this->posxtva-$this->posxpicture-1,2, $outputlangs->transnoentities("Photo"),'','C');
 			}
 		}
 
@@ -1416,16 +1442,18 @@ class pdf_azur extends ModelePDFPropales
 			}
 		}
 
+		// Quantity
 		$pdf->line($this->posxup - 1, $tab_top, $this->posxup - 1, $tab_top + $tab_height);
 		if (empty($hidetop)) {
 			$pdf->SetXY($this->posxup - 1, $tab_top + 1);
-			$pdf->MultiCell($this->posxqty - $this->posxup - 1, 2, $outputlangs->transnoentities("PriceUHT"), '', 'C');
+			$pdf->MultiCell($this->posxqty - $this->posxup - 1, 2, $outputlangs->transnoentities("Qty"), '', 'C');
 		}
 
+		// Unit price before discount
 		$pdf->line($this->posxqty - 1, $tab_top, $this->posxqty - 1, $tab_top + $tab_height);
 		if (empty($hidetop)) {
 			$pdf->SetXY($this->posxqty - 1, $tab_top + 1);
-			$pdf->MultiCell($this->posxunit - $this->posxqty - 1, 2, $outputlangs->transnoentities("Qty"), '', 'C');
+			$pdf->MultiCell($this->posxunit - $this->posxqty - 1, 2, $outputlangs->transnoentities("PriceUHT"), '', 'C');
 		}
 
 		if (!empty($conf->global->PRODUCT_USE_UNITS)) {
@@ -1446,7 +1474,7 @@ class pdf_azur extends ModelePDFPropales
 		if (empty($hidetop)) {
 			if ($this->atleastonediscount) {
 				$pdf->SetXY($this->posxdiscount - 1, $tab_top + 1);
-				$pdf->MultiCell($this->postotalht - $this->posxdiscount + 1, 2, $outputlangs->transnoentities("ReductionShort"), '', 'C');
+				$pdf->MultiCell($this->postotalht - $this->posxdiscount + 1, 2, $outputlangs->transnoentities("TotalHT"), '', 'C');
 			}
 		}
 		if ($this->atleastonediscount) {
@@ -1454,7 +1482,7 @@ class pdf_azur extends ModelePDFPropales
 		}
 		if (empty($hidetop)) {
 			$pdf->SetXY($this->postotalht - 1, $tab_top + 1);
-			$pdf->MultiCell(30, 2, $outputlangs->transnoentities("TotalHT"), '', 'C');
+			$pdf->MultiCell(20, 2, $outputlangs->transnoentities("TotalTTC"), '', 'C');
 		}
 	}
 
@@ -1520,14 +1548,17 @@ class pdf_azur extends ModelePDFPropales
 
 		$pdf->SetFont('', 'B', $default_font_size + 3);
 		$pdf->SetXY($posx, $posy);
-		$pdf->SetTextColor(0, 0, 60);
+		$pdf->SetTextColor(68, 116, 206);
 		$title = $outputlangs->transnoentities("PdfCommercialProposalTitle");
-		$title .= ' '.$outputlangs->convToOutputCharset($object->ref);
 		if ($object->statut == $object::STATUS_DRAFT) {
 			$pdf->SetTextColor(128, 0, 0);
 			$title .= ' - '.$outputlangs->transnoentities("NotValidated");
 		}
 		$pdf->MultiCell(100, 4, $title, '', 'R');
+		$posy += 4;
+		$pdf->SetXY($posx, $posy);
+		$pdf->MultiCell(100, 4, 'No: '.$outputlangs->convToOutputCharset($object->ref), '', 'R');
+
 
 		$pdf->SetFont('', 'B', $default_font_size);
 
