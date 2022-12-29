@@ -319,8 +319,9 @@ class pdf_azur extends ModelePDFPropales
 				$file = $dir."/SPECIMEN.pdf";
 			} else {
 				$objectref = dol_sanitizeFileName($object->ref);
+				$ref_client = dol_sanitizeFileName($object->socid);
 				$dir = $conf->propal->multidir_output[$object->entity]."/".$objectref;
-				$file = $dir."/".$objectref.".pdf";
+				$file = $dir."/Devis-".$objectref."-".$ref_client."pdf";
 			}
 
 			if (!file_exists($dir)) {
@@ -495,7 +496,7 @@ class pdf_azur extends ModelePDFPropales
 
 				$iniY = $tab_top + 7;
 				$curY = $tab_top + 7;
-				$nexY = $tab_top + 12;
+				$nexY = $tab_top + 7;
 
 				// Loop on each lines
 				for ($i = 0; $i < $nblines; $i++) {
@@ -992,6 +993,17 @@ class pdf_azur extends ModelePDFPropales
 			$lib_condition_paiement = str_replace('\n', "\n", $lib_condition_paiement);
 			if ($object->deposit_percent > 0) {
 				$lib_condition_paiement = str_replace('__DEPOSIT_PERCENT__', $object->deposit_percent, $lib_condition_paiement);
+				$lib_condition_paiement = str_replace('__DEPOSIT_PERCENT_LEFT__', 100 - $object->deposit_percent, $lib_condition_paiement);
+				
+				$total_ttc = (!empty($conf->multicurrency->enabled) && $object->multicurrency_tx != 1) ? $object->multicurrency_total_ttc : $object->total_ttc;
+				
+				$sum_deposit = round(($object->deposit_percent / 100) *$total_ttc, 2);
+				$sum_deposit_left = $total_ttc - (round(($object->deposit_percent / 100) *$total_ttc, 2));
+
+				$lib_condition_paiement = str_replace('__DEPOSIT_SUM__', number_format((float)$sum_deposit, 2, '.', ''), $lib_condition_paiement);
+				$lib_condition_paiement = str_replace('__DEPOSIT_SUM_LEFT__', number_format((float)$sum_deposit_left, 2, '.', ''), $lib_condition_paiement);
+
+
 			}
 			$pdf->MultiCell(67, 4, $lib_condition_paiement, 0, 'L');
 
@@ -1125,6 +1137,16 @@ class pdf_azur extends ModelePDFPropales
 
 		$useborder = 0;
 		$index = 0;
+
+		// $condition = 'CONDITION DE PRODUIT:		
+		// 	- Prix valable jusqu\'au '.dol_print_date($object->fin_validite, 'day', false, $outputlangs, true).'		
+	   	// 	- Délais de livraison: 1-2 semaines 		
+	   	// 	- Paiement: Virement, Cheque';
+
+		// Condition
+		// $pdf->SetFillColor(255, 255, 255);
+		// $pdf->SetXY(10, $tab2_top + 0);
+		// $pdf->MultiCell(200, $tab2_hl, $condition, 0, 'L', 1);
 
 		// Total HT
 		$pdf->SetFillColor(255, 255, 255);
@@ -1400,12 +1422,12 @@ class pdf_azur extends ModelePDFPropales
 
 			//$conf->global->MAIN_PDF_TITLE_BACKGROUND_COLOR='230,230,230';
 			if (!empty($conf->global->MAIN_PDF_TITLE_BACKGROUND_COLOR)) {
-				$pdf->Rect($this->marge_gauche, $tab_top, $this->page_largeur - $this->marge_droite - $this->marge_gauche, 10, 'F', null, explode(',', $conf->global->MAIN_PDF_TITLE_BACKGROUND_COLOR));
+				$pdf->Rect($this->marge_gauche, $tab_top, $this->page_largeur - $this->marge_droite - $this->marge_gauche, 5, 'F', null, explode(',', $conf->global->MAIN_PDF_TITLE_BACKGROUND_COLOR));
 			}
 		}
 
 		$pdf->SetDrawColor(128, 128, 128);
-		$pdf->SetFont('', '', $default_font_size - 1);
+		$pdf->SetFont('', '', $default_font_size - 4);
 
 		// Output Rect
 		$this->printRect($pdf, $this->marge_gauche, $tab_top, $this->page_largeur - $this->marge_gauche - $this->marge_droite, $tab_height, $hidetop, $hidebottom); // Rect takes a length in 3rd parameter and 4th parameter
@@ -1499,7 +1521,7 @@ class pdf_azur extends ModelePDFPropales
 	 */
 	protected function _pagehead(&$pdf, $object, $showaddress, $outputlangs, $outputlangsbis = null)
 	{
-		global $conf, $langs;
+		global $conf, $langs, $user;
 
 		$ltrdirection = 'L';
 		if ($outputlangs->trans("DIRECTION") == 'rtl') $ltrdirection = 'R';
@@ -1656,7 +1678,7 @@ class pdf_azur extends ModelePDFPropales
 				$labelbeforecontactname = ($outputlangs->transnoentities("FromContactName") != 'FromContactName' ? $outputlangs->transnoentities("FromContactName") : $outputlangs->transnoentities("Name"));
 				$carac_emetteur .= ($carac_emetteur ? "\n" : '').$labelbeforecontactname." ".$outputlangs->convToOutputCharset($object->user->getFullName($outputlangs))."\n";
 			}
-
+			$this->emetteur->user = $user;
 			$carac_emetteur .= pdf_build_address($outputlangs, $this->emetteur, $object->thirdparty, '', 0, 'source', $object);
 
 			// Show sender
@@ -1786,6 +1808,19 @@ class pdf_azur extends ModelePDFPropales
 		$tab_top = $posy + 4;
 		$tab_hl = 4;
 
+		$posx = 10;
+		$largcol = ($this->page_largeur - $this->marge_droite - 120);
+		$useborder = 0;
+		$index = 0;
+		// Total HT
+		$pdf->SetFillColor(255, 255, 255);
+		$pdf->SetXY($posx, $tab_top + 0);
+		$pdf->SetFont('', '', $default_font_size - 2);
+		$pdf->MultiCell($largcol, $tab_hl, $outputlangs->transnoentities("CompanySignature"), 0, 'L', 1);
+
+		//$pdf->SetXY($posx, $tab_top + $tab_hl);
+		//$pdf->MultiCell($largcol, $tab_hl * 3, '', 1, 'R');
+
 		$posx = 120;
 		$largcol = ($this->page_largeur - $this->marge_droite - $posx);
 		$useborder = 0;
@@ -1794,10 +1829,13 @@ class pdf_azur extends ModelePDFPropales
 		$pdf->SetFillColor(255, 255, 255);
 		$pdf->SetXY($posx, $tab_top + 0);
 		$pdf->SetFont('', '', $default_font_size - 2);
-		$pdf->MultiCell($largcol, $tab_hl, $outputlangs->transnoentities("ProposalCustomerSignature"), 0, 'L', 1);
-
+		$pdf->MultiCell($largcol, $tab_hl, $outputlangs->transnoentities("ClientSignature"), 0, 'L', 1);
 		$pdf->SetXY($posx, $tab_top + $tab_hl);
-		$pdf->MultiCell($largcol, $tab_hl * 3, '', 1, 'R');
+		$pdf->MultiCell($largcol, $tab_hl, '"Bon pour accord"', 0, 'L', 1);
+
+
+		//$pdf->SetXY($posx, $tab_top + $tab_hl);
+		//$pdf->MultiCell($largcol, $tab_hl * 3, '', 1, 'R');
 		if (!empty($conf->global->MAIN_PDF_PROPAL_USE_ELECTRONIC_SIGNING)) {
 			$pdf->addEmptySignatureAppearance($posx, $tab_top + $tab_hl, $largcol, $tab_hl * 3);
 		}

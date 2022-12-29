@@ -472,6 +472,10 @@ function pdf_build_address($outputlangs, $sourcecompany, $targetcompany = '', $t
 				if ($sourcecompany->email) {
 					$stringaddress .= ($stringaddress ? "\n" : '').$outputlangs->transnoentities("Email").": ".$outputlangs->convToOutputCharset($sourcecompany->email);
 				}
+				// EMail user
+				if ($sourcecompany->user && $sourcecompany->user->email) {
+					$stringaddress .= ($stringaddress ? "\n" : '').$outputlangs->convToOutputCharset($sourcecompany->user->email);
+				}
 				// Web
 				if ($sourcecompany->url) {
 					$stringaddress .= ($stringaddress ? "\n" : '').$outputlangs->transnoentities("Web").": ".$outputlangs->convToOutputCharset($sourcecompany->url);
