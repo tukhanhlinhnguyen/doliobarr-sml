@@ -686,11 +686,18 @@ class pdf_eratosthene extends ModelePDFCommandes
 						$nexY = max($pdf->GetY(), $nexY);
 					}
 
+					if ($this->getColumnStatus('RowIndex')) {
+						$index = $i+1;
+						$this->printStdColumnContent($pdf, $curY, 'RowIndex', $index);
+						$nexY = max($pdf->GetY(), $nexY);
+					}
+
 					// Unit price before discount
 					if ($this->getColumnStatus('subprice')) {
-						$up_excl_tax = pdf_getlineupexcltax($object, $i, $outputlangs, $hidedetails);
-						$this->printStdColumnContent($pdf, $curY, 'subprice', $up_excl_tax);
-						$nexY = max($pdf->GetY(), $nexY);
+						//TODO SAU KHI VAN DE
+						// $up_excl_tax = pdf_getlineupexcltax($object, $i, $outputlangs, $hidedetails);
+						// $this->printStdColumnContent($pdf, $curY, 'subprice', $up_excl_tax);
+						// $nexY = max($pdf->GetY(), $nexY);
 					}
 
 					// Quantity
@@ -870,7 +877,7 @@ class pdf_eratosthene extends ModelePDFCommandes
 				$posy = $this->drawInfoTable($pdf, $object, $bottomlasttab, $outputlangs);
 
 				// Display total zone
-				$posy = $this->drawTotalTable($pdf, $object, $deja_regle, $bottomlasttab, $outputlangs);
+				//$posy = $this->drawTotalTable($pdf, $object, $deja_regle, $bottomlasttab, $outputlangs);
 
 				// Affiche zone versements
 				/*
@@ -1404,10 +1411,10 @@ class pdf_eratosthene extends ModelePDFCommandes
 		$pdf->SetFont('', '', $default_font_size - 2);
 
 		if (empty($hidetop)) {
-			$titre = $outputlangs->transnoentities("AmountInCurrency", $outputlangs->transnoentitiesnoconv("Currency".$currency));
-			if (!empty($conf->global->PDF_USE_ALSO_LANGUAGE_CODE) && is_object($outputlangsbis)) {
-				$titre .= ' - '.$outputlangsbis->transnoentities("AmountInCurrency", $outputlangsbis->transnoentitiesnoconv("Currency".$currency));
-			}
+			// $titre = $outputlangs->transnoentities("AmountInCurrency", $outputlangs->transnoentitiesnoconv("Currency".$currency));
+			// if (!empty($conf->global->PDF_USE_ALSO_LANGUAGE_CODE) && is_object($outputlangsbis)) {
+			// 	$titre .= ' - '.$outputlangsbis->transnoentities("AmountInCurrency", $outputlangsbis->transnoentitiesnoconv("Currency".$currency));
+			// }
 
 			$pdf->SetXY($this->page_largeur - $this->marge_droite - ($pdf->GetStringWidth($titre) + 3), $tab_top - 4);
 			$pdf->MultiCell(($pdf->GetStringWidth($titre) + 3), 2, $titre);
@@ -1772,8 +1779,28 @@ class pdf_eratosthene extends ModelePDFCommandes
 		 */
 
 		$rank = 0; // do not use negative rank
-		$this->cols['desc'] = array(
+
+		//No column
+		$this->cols['RowIndex'] = array(
 			'rank' => $rank,
+			'width' => 10, // only for desc
+			'status' => true,
+			'title' => array(
+				'textkey' => 'RowIndex', // use lang key is usefull in somme case with module
+				'align' => 'L',
+				// 'textkey' => 'yourLangKey', // if there is no label, yourLangKey will be translated to replace label
+				// 'label' => ' ', // the final label
+				'padding' => array(0.5, 0.5, 0.5, 0.5), // Like css 0 => top , 1 => right, 2 => bottom, 3 => left
+			),
+			'content' => array(
+				'align' => 'L',
+				'padding' => array(1, 0.5, 1, 1.5), // Like css 0 => top , 1 => right, 2 => bottom, 3 => left
+			),
+		);
+
+		//Product column
+		$this->cols['desc'] = array(
+			'rank' => $rank+10,
 			'width' => false, // only for desc
 			'status' => true,
 			'title' => array(
@@ -1787,10 +1814,11 @@ class pdf_eratosthene extends ModelePDFCommandes
 				'align' => 'L',
 				'padding' => array(1, 0.5, 1, 1.5), // Like css 0 => top , 1 => right, 2 => bottom, 3 => left
 			),
+			'border-left' => true, 
 		);
 
 		// Image of product
-		$rank = $rank + 10;
+		$rank = $rank + 20;
 		$this->cols['photo'] = array(
 			'rank' => $rank,
 			'width' => (empty($conf->global->MAIN_DOCUMENTS_WITH_PICTURE_WIDTH) ? 20 : $conf->global->MAIN_DOCUMENTS_WITH_PICTURE_WIDTH), // in mm
@@ -1825,12 +1853,13 @@ class pdf_eratosthene extends ModelePDFCommandes
 		}
 
 		$rank = $rank + 10;
+		//TODO SAU KHI VAN DE
 		$this->cols['subprice'] = array(
 			'rank' => $rank,
 			'width' => 19, // in mm
 			'status' => true,
 			'title' => array(
-				'textkey' => 'PriceUHT'
+				'textkey' => 'Dimension'
 			),
 			'border-left' => true, // add left line separator
 		);
@@ -1889,7 +1918,7 @@ class pdf_eratosthene extends ModelePDFCommandes
 		$this->cols['totalexcltax'] = array(
 			'rank' => $rank,
 			'width' => 26, // in mm
-			'status' => empty($conf->global->PDF_PROPAL_HIDE_PRICE_EXCL_TAX) ? true : false,
+			'status' => empty($conf->global->PDF_ORDER_HIDE_PRICE_EXCL_TAX) ? true : false,
 			'title' => array(
 				'textkey' => 'TotalHT'
 			),

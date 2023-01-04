@@ -2565,3 +2565,39 @@ function pdf_getlinetotalincltax($object, $i, $outputlangs, $hidedetails = 0)
     }
 }
 
+function pdf_getlinedimension($object, $i, $outputlangs, $hidedetails = 0)
+{
+	global $conf, $hookmanager, $db;
+
+	$sign = 1;
+
+	$result = '';
+	$reshook = 0;
+	//if (is_object($hookmanager) && ( (isset($object->lines[$i]->product_type) && $object->lines[$i]->product_type == 9 && ! empty($object->lines[$i]->special_code)) || ! empty($object->lines[$i]->fk_parent_line) ) )
+	if (is_object($hookmanager)) {   // Old code is commented on preceding line. Reproduct this test in the pdf_xxx function if you don't want your hook to run
+		$special_code = $object->lines[$i]->special_code;
+		if (!empty($object->lines[$i]->fk_parent_line)) {
+			$special_code = $object->getSpecialCode($object->lines[$i]->fk_parent_line);
+		}
+		$parameters = array('i'=>$i, 'outputlangs'=>$outputlangs, 'hidedetails'=>$hidedetails, 'special_code'=>$special_code);
+		$action = '';
+		$reshook = $hookmanager->executeHooks('pdf_getlinedimension', $parameters, $object, $action); // Note that $action and $object may have been modified by some hooks
+
+		if (!empty($hookmanager->resPrint)) {
+			$result .= $hookmanager->resPrint;
+		}
+	}
+	if (empty($reshook)) {
+		if (empty($hidedetails) || $hidedetails > 1) {
+			include_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
+			$fk_product = $object->lines[$i]->fk_product;
+			$product = new Product($db);
+			$product_object = $product->fetch($fk_product);
+			$weight = $product->weight;
+			//$result = $weight;
+			//TODO SAU KHI VAN DE
+		}
+	}
+	return $result;
+}
+
