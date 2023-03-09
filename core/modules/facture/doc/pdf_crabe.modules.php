@@ -181,13 +181,13 @@ class pdf_crabe extends ModelePDFFactures
 		$this->posxdesc = $this->marge_gauche + 1;
 		if (!empty($conf->global->PRODUCT_USE_UNITS)) {
 			$this->posxtva = 101;
-			$this->posxup = 118;
-			$this->posxqty = 135;
+			$this->posxup = 98;
+			$this->posxqty = 125;
 			$this->posxunit = 151;
 		} else {
 			$this->posxtva = 110;
-			$this->posxup = 126;
-			$this->posxqty = 145;
+			$this->posxup = 106;
+			$this->posxqty = 135;
 			$this->posxunit = 162;
 		}
 		$this->posxprogress = 151; // Only displayed for situation invoices
@@ -234,7 +234,7 @@ class pdf_crabe extends ModelePDFFactures
 	public function write_file($object, $outputlangs, $srctemplatepath = '', $hidedetails = 0, $hidedesc = 0, $hideref = 0)
 	{
 		// phpcs:enable
-		global $user, $langs, $conf, $mysoc, $hookmanager, $nblines;
+		global $user, $langs, $conf, $mysoc, $db, $hookmanager, $nblines;
 
 		dol_syslog("write_file outputlangs->defaultlang=".(is_object($outputlangs) ? $outputlangs->defaultlang : 'null'));
 
@@ -308,8 +308,16 @@ class pdf_crabe extends ModelePDFFactures
 				$file = $dir."/SPECIMEN.pdf";
 			} else {
 				$objectref = dol_sanitizeFileName($object->ref);
+				$socid = dol_sanitizeFileName($object->socid);
+				$get_societe_name_query = "SELECT nom FROM `r2aw_societe` where rowid = ".$socid;
+				$resql = $db->query($get_societe_name_query);
+				$societe = $db->fetch_object($resql);
+				$nom_societe="";
+				if($societe){
+					$nom_societe = "-".$societe->nom;
+				}
 				$dir = (empty($conf->facture->multidir_output[$conf->entity]) ? $conf->facture->dir_output : $conf->facture->multidir_output[$conf->entity])."/".$objectref;
-				$file = $dir."/".$objectref.".pdf";
+				$file = $dir."/FACTURE-".$objectref.$nom_societe.".pdf";
 			}
 			if (!file_exists($dir)) {
 				if (dol_mkdir($dir) < 0) {

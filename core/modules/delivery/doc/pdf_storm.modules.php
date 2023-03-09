@@ -466,6 +466,11 @@ class pdf_storm extends ModelePDFDeliveryOrder
 						}
 					}
 
+					if ($this->getColumnStatus('RowIndex')) {
+						$index = $i+1;
+						$this->printStdColumnContent($pdf, $curY, 'RowIndex', $index);
+						$nexY = max($pdf->GetY(), $nexY);
+					}
 
 					// Description of product line
 					if ($this->getColumnStatus('desc')) {
@@ -523,15 +528,16 @@ class pdf_storm extends ModelePDFDeliveryOrder
 
 
 					// Quantity
-					if ($this->getColumnStatus('qty_shipped')) {
-						$this->printStdColumnContent($pdf, $curY, 'qty_shipped', $object->lines[$i]->qty_shipped);
+					if ($this->getColumnStatus('Qty')) {
+						$this->printStdColumnContent($pdf, $curY, 'Qty', $object->lines[$i]->qty_shipped);
 						$nexY = max($pdf->GetY(), $nexY);
 					}
 
-					// Remaining to ship
-					if ($this->getColumnStatus('qty_remaining')) {
-						$qtyRemaining = $object->lines[$i]->qty_asked - $object->commande->expeditions[$object->lines[$i]->fk_origin_line];
-						$this->printStdColumnContent($pdf, $curY, 'qty_remaining', $qtyRemaining);
+					// Palette
+					if ($this->getColumnStatus('palette')) {
+						
+						$palette = $this->getExtrafieldContent($object->commande->lines[$i], "options_palette", $outputlangs);
+						$this->printStdColumnContent($pdf, $curY, 'palette', $palette);
 						$nexY = max($pdf->GetY(), $nexY);
 					}
 
@@ -671,14 +677,18 @@ class pdf_storm extends ModelePDFDeliveryOrder
 		$pdf->SetFont('', '', $default_font_size);
 		$pdf->SetXY($this->marge_gauche, $posy);
 
-		$larg_sign = ($this->page_largeur - $this->marge_gauche - $this->marge_droite) / 3;
-		$pdf->Rect($this->marge_gauche, $posy + 1, $larg_sign, 25);
-		$pdf->SetXY($this->marge_gauche + 2, $posy + 2);
-		$pdf->MultiCell($larg_sign, 2, $outputlangs->trans("For").' '.$outputlangs->convToOutputCharset($mysoc->name).":", '', 'L');
+		// $larg_sign = ($this->page_largeur - $this->marge_gauche - $this->marge_droite) / 3;
+		// $pdf->Rect($this->marge_gauche, $posy + 1, $larg_sign, 25);
+		// $pdf->SetXY($this->marge_gauche + 2, $posy + 2);
+		// $pdf->MultiCell($larg_sign, 2, $outputlangs->trans("For").' '.$outputlangs->convToOutputCharset($mysoc->name).":", '', 'L');
+		
+		$larg_sign = ($this->page_largeur - $this->marge_gauche - $this->marge_droite);
 
-		$pdf->Rect(2 * $larg_sign + $this->marge_gauche, $posy + 1, $larg_sign, 25);
-		$pdf->SetXY(2 * $larg_sign + $this->marge_gauche + 2, $posy + 2);
-		$pdf->MultiCell($larg_sign, 2, $outputlangs->trans("ForCustomer").':', '', 'L');
+		$pdf->Rect($this->marge_gauche, $posy + 1, $larg_sign, 25);
+		$pdf->MultiCell($larg_sign, 1, "");
+		$pdf->MultiCell($larg_sign, 2, $outputlangs->trans("DeliveryDate").':', '', 'L');
+		$pdf->MultiCell($larg_sign, 2, 'Reçu le:', '', 'L');
+		$pdf->MultiCell($larg_sign, 2, $outputlangs->trans("Signature").':', '', 'L');
 	}
 
 
@@ -790,13 +800,15 @@ class pdf_storm extends ModelePDFDeliveryOrder
 		$posy += 5;
 		$pdf->SetXY($posx, $posy);
 		$pdf->SetTextColor(0, 0, 60);
-		if ($object->date_valid) {
-			$pdf->MultiCell(100, 4, $outputlangs->transnoentities("Date")." : ".dol_print_date($object->date_delivery, "%d %b %Y", false, $outputlangs, true), '', 'R');
-		} else {
-			$pdf->SetTextColor(255, 0, 0);
-			$pdf->MultiCell(100, 4, $outputlangs->transnoentities("DeliveryNotValidated"), '', 'R');
-			$pdf->SetTextColor(0, 0, 60);
-		}
+
+		//HIDE THE DATE
+		// if ($object->date_valid) {
+		// 	$pdf->MultiCell(100, 4, $outputlangs->transnoentities("Date")." : ".dol_print_date($object->date_delivery, "%d %b %Y", false, $outputlangs, true), '', 'R');
+		// } else {
+		// 	$pdf->SetTextColor(255, 0, 0);
+		// 	$pdf->MultiCell(100, 4, $outputlangs->transnoentities("DeliveryNotValidated"), '', 'R');
+		// 	$pdf->SetTextColor(0, 0, 60);
+		// }
 
 		if ($object->thirdparty->code_client) {
 			$posy += 5;
@@ -971,10 +983,28 @@ class pdf_storm extends ModelePDFDeliveryOrder
 		 ),
 		 );
 		 */
-
 		$rank = 0; // do not use negative rank
-		$this->cols['desc'] = array(
+
+		 //No column
+		$this->cols['RowIndex'] = array(
 			'rank' => $rank,
+			'width' => 10, // only for desc
+			'status' => true,
+			'title' => array(
+				'textkey' => 'RowIndex', // use lang key is usefull in somme case with module
+				'align' => 'L',
+				// 'textkey' => 'yourLangKey', // if there is no label, yourLangKey will be translated to replace label
+				// 'label' => ' ', // the final label
+				'padding' => array(0.5, 0.5, 0.5, 0.5), // Like css 0 => top , 1 => right, 2 => bottom, 3 => left
+			),
+			'content' => array(
+				'align' => 'L',
+				'padding' => array(1, 0.5, 1, 1.5), // Like css 0 => top , 1 => right, 2 => bottom, 3 => left
+			),
+		);
+
+		$this->cols['desc'] = array(
+			'rank' => $rank + 10,
 			'width' => false, // only for desc
 			'status' => true,
 			'title' => array(
@@ -987,9 +1017,10 @@ class pdf_storm extends ModelePDFDeliveryOrder
 			'content' => array(
 				'align' => 'L',
 			),
+			'border-left' => true, // remove left line separator
 		);
 
-		$rank = $rank + 10;
+		$rank = $rank + 20;
 		$this->cols['photo'] = array(
 			'rank' => $rank,
 			'width' => (empty($conf->global->MAIN_DOCUMENTS_WITH_PICTURE_WIDTH) ? 20 : $conf->global->MAIN_DOCUMENTS_WITH_PICTURE_WIDTH), // in mm
@@ -1010,12 +1041,13 @@ class pdf_storm extends ModelePDFDeliveryOrder
 
 
 		$rank = $rank + 10;
-		$this->cols['Comments'] = array(
+		//TODO SAU KHI VAN DE
+		$this->cols['Dimension'] = array(
 			'rank' => $rank,
 			'width' => 50, // in mm
 			'status' => true,
 			'title' => array(
-				'textkey' => 'Comments'
+				'textkey' => 'Dimension'
 			),
 			'border-left' => true, // add left line separator
 		);
@@ -1032,23 +1064,23 @@ class pdf_storm extends ModelePDFDeliveryOrder
 		//      );
 
 		$rank = $rank + 10;
-		$this->cols['qty_shipped'] = array(
+		$this->cols['Qty'] = array(
 			'rank' => $rank,
 			'width' => 20, // in mm
 			'status' => true,
 			'title' => array(
-				'textkey' => 'QtyShippedShort'
+				'textkey' => 'Qty'
 			),
 			'border-left' => true, // add left line separator
 		);
 
 		$rank = $rank + 10;
-		$this->cols['qty_remaining'] = array(
+		$this->cols['palette'] = array(
 			'rank' => $rank,
 			'width' => 20, // in mm
 			'status' => 1,
 			'title' => array(
-				'textkey' => 'KeepToShipShort'
+				'textkey' => 'palette'
 			),
 			'border-left' => true, // add left line separator
 		);
