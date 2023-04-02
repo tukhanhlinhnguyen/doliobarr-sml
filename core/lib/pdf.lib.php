@@ -2545,26 +2545,50 @@ function pdfGetLineTotalDiscountAmount($object, $i, $outputlangs, $hidedetails =
 
 function pdf_getlinetotalincltax($object, $i, $outputlangs, $hidedetails = 0)
 {
-	if ($object->lines[$i]->special_code == 3)
-    {
-        return $outputlangs->transnoentities("Option");
-    }
-    else
-    {
-        if (! empty($object->hooks) && ( ($object->lines[$i]->product_type == 9 && ! empty($object->lines[$i]->special_code) ) || ! empty($object->lines[$i]->fk_parent_line) ) )
-        {
-        	$special_code = $object->lines[$i]->special_code;
-        	if (! empty($object->lines[$i]->fk_parent_line)) $special_code = $object->getSpecialCode($object->lines[$i]->fk_parent_line);
-        	foreach($object->hooks as $hook)
-	    	{
-	    		if (method_exists($hook['modules'][$special_code],'pdf_getlinetotalincltax')) return $hook['modules'][$special_code]->pdf_getlinetotalincltax($object,$i,$outputlangs,$hidedetails);
+	global $conf, $hookmanager;
+
+	$sign = 1;
+	if (isset($object->type) && $object->type == 2 && !empty($conf->global->INVOICE_POSITIVE_CREDIT_NOTE)) {
+		$sign = -1;
+	}
+
+	$reshook = 0;
+	$result = '';
+
+	if (is_object($hookmanager)) {   // Old code is commented on preceding line. Reproduct this test in the pdf_xxx function if you don't want your hook to run
+		$special_code = $object->lines[$i]->special_code;
+		if (!empty($object->lines[$i]->fk_parent_line)) {
+			$special_code = $object->getSpecialCode($object->lines[$i]->fk_parent_line);
+		}
+		$parameters = array('i'=>$i, 'outputlangs'=>$outputlangs, 'hidedetails'=>$hidedetails, 'special_code'=>$special_code, 'sign'=>$sign);
+		$action = '';
+		$reshook = $hookmanager->executeHooks('pdf_getlinetotalincltax', $parameters, $object, $action); // Note that $action and $object may have been modified by some hooks
+
+		if (!empty($hookmanager->resPrint)) {
+			$result .= $hookmanager->resPrint;
+		}
+	}
+
+	if (empty($reshook)) {
+		if ($object->lines[$i]->special_code == 3) {
+			$result .= $outputlangs->transnoentities("Option");
+		} elseif (empty($hidedetails) || $hidedetails > 1) {
+			$total_ttc = (!empty($conf->multicurrency->enabled) && $object->multicurrency_tx != 1 ? $object->lines[$i]->multicurrency_total_ttc : $object->lines[$i]->total_ttc);
+			if (!empty($object->lines[$i]->situation_percent) && $object->lines[$i]->situation_percent > 0) {
+				// TODO Remove this. The total should be saved correctly in database instead of being modified here.
+				$prev_progress = 0;
+				$progress = 1;
+				if (method_exists($object->lines[$i], 'get_prev_progress')) {
+					$prev_progress = $object->lines[$i]->get_prev_progress($object->id);
+					$progress = ($object->lines[$i]->situation_percent - $prev_progress) / 100;
+				}
+				$result .= price($sign * ($total_ttc / ($object->lines[$i]->situation_percent / 100)) * $progress, 0, $outputlangs);
+			} else {
+				$result .= price($sign * $total_ttc, 0, $outputlangs);
 			}
-        }
-        else
-        {
-            if (empty($hidedetails) || $hidedetails > 1) return price($object->lines[$i]->total_ttc);
-        }
-    }
+		}
+	}
+	return $result;
 }
 
 function pdf_getlinedimension($object, $i, $outputlangs, $hidedetails = 0)
