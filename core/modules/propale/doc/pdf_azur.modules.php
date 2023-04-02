@@ -1439,8 +1439,8 @@ class pdf_azur extends ModelePDFPropales
 		// Output Rect
 		$this->printRect($pdf, $this->marge_gauche, $tab_top, $this->page_largeur - $this->marge_gauche - $this->marge_droite, $tab_height, $hidetop, $hidebottom); // Rect takes a length in 3rd parameter and 4th parameter
 
+		$pdf->line($this->posxdesc -1 + 10, $tab_top, $this->posxdesc - 1 + 10, $tab_top + $tab_height);
 		if (empty($hidetop)) {
-			$pdf->line($this->posxdesc -1 + 10, $tab_top, $this->posxdesc - 1 + 10, $tab_top + $tab_height);
 
 			$pdf->SetXY($this->posxdesc - 1, $tab_top + 1);
 			$pdf->MultiCell($this->posxdesc, 2, $outputlangs->transnoentities("RowIndex"), '', 'C');
