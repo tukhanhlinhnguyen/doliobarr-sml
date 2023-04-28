@@ -391,8 +391,17 @@ class pdf_azur extends ModelePDFPropales
 				// Set $this->atleastonediscount if you have at least one discount
 				for ($i = 0; $i < $nblines; $i++) {
 					if ($object->lines[$i]->remise_percent) {
+						// ----------------------------------------------------------
+						// Calculez le montant de la remise pour cette ligne
+                        $line_total_excl_tax = pdf_getlinetotalexcltax($object, $i, $outputlangs, $hidedetails);
+                        $line_discount_amount = $line_total_excl_tax * $object->lines[$i]->remise_percent / 100;
+
+                        // Ajoutez le montant de la remise à la variable du montant total des remises
+                        $this->total_discount_amount += $line_discount_amount;
+
+                        // Incrémentez la variable comptant le nombre de lignes avec une remise
 						$this->atleastonediscount++;
-					}
+					}//---------------------------------------------------------------------
 				}
 				if (empty($this->atleastonediscount)) {
 					$delta = ($this->postotalht - $this->posxdiscount);
@@ -1154,6 +1163,29 @@ class pdf_azur extends ModelePDFPropales
 		// $pdf->SetFillColor(255, 255, 255);
 		// $pdf->SetXY(10, $tab2_top + 0);
 		// $pdf->MultiCell(200, $tab2_hl, $condition, 0, 'L', 1);
+
+		// Récupérez les valeurs de remise depuis la session
+        session_start();
+        $absolute_discount = isset($_SESSION['absolute_discount']) ? $_SESSION['absolute_discount'] : 0;
+        $fixedDiscount = isset($_SESSION['fixedDiscount']) ? $_SESSION['fixedDiscount'] : 0;
+        session_write_close(); 
+        // fermer la session
+
+        // Récupérez le montant total de la remise
+        $total_remise = $object->total_remise;
+        
+
+
+		// ---------------------Ajout de la remise
+        $index++;
+        $pdf->SetFillColor(255, 255, 255);
+        $pdf->SetXY($col1x, $tab2_top + $tab2_hl * $index);
+        $pdf->MultiCell($col2x - $col1x, $tab2_hl, $outputlangs->transnoentities("Remise"), 0, 'L', 1);
+
+        $pdf->SetXY($col2x, $tab2_top + $tab2_hl * $index);
+        $pdf->MultiCell($largcol2, $tab2_hl, price($this->total_discount_amount, 0, $outputlangs), 0, 'R', 1);
+
+        // Total HT
 
 		// Total HT
 		$pdf->SetFillColor(255, 255, 255);
