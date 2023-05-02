@@ -7977,6 +7977,18 @@ function complete_substitutions_array(&$substitutionarray, $outputlangs, $object
 			}
 		}
 	}
+	// Add the __POURCENT_ACCOUNT__ substitution key
+    if (is_object($object)) {
+        $substitutionarray['__POURCENT_ACCOUNT__'] = $object->deposit_percent;
+    } else {
+        $substitutionarray['__POURCENT_ACCOUNT__'] = '__POURCENT_ACCOUNT__';
+    }
+    if (isset($object->deposit_amount)) {
+    $substitutionarray['__MONTANT_ACOMPTE__'] = $object->deposit_amount;
+    } else {
+    $substitutionarray['__MONTANT_ACOMPTE__'] = '__MONTANT_ACOMPTE__';
+    }
+
 	if (!empty($conf->global->ODT_ENABLE_ALL_TAGS_IN_SUBSTITUTIONS)) {
 		// to list all tags in odt template
 		$tags = '';
