@@ -1015,6 +1015,8 @@ class pdf_azur extends ModelePDFPropales
 				
 				$sum_deposit = round(($object->deposit_percent / 100) *$total_ttc, 2);
 				$sum_deposit_left = $total_ttc - (round(($object->deposit_percent / 100) *$total_ttc, 2));
+				// Add this line to set the deposit_amount in the object
+                $object->deposit_amount = $sum_deposit;
 
 				$lib_condition_paiement = str_replace('__DEPOSIT_SUM__', number_format((float)$sum_deposit, 2, '.', ''), $lib_condition_paiement);
 				$lib_condition_paiement = str_replace('__DEPOSIT_SUM_LEFT__', number_format((float)$sum_deposit_left, 2, '.', ''), $lib_condition_paiement);
