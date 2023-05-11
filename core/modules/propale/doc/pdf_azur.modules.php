@@ -31,6 +31,8 @@
  *	\brief      File of Class to generate PDF proposal with Azur template
  */
 
+
+
 require_once DOL_DOCUMENT_ROOT.'/core/modules/propale/modules_propale.php';
 require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/company.lib.php';
@@ -389,6 +391,8 @@ class pdf_azur extends ModelePDFPropales
 				$pdf->SetMargins($this->marge_gauche, $this->marge_haute, $this->marge_droite); // Left, Top, Right
 
 				// Set $this->atleastonediscount if you have at least one discount
+				// Initialisez la variable pour compter le montant total des remises
+                $this->total_discount_amount = 0;
 				for ($i = 0; $i < $nblines; $i++) {
 					if ($object->lines[$i]->remise_percent) {
 						// ----------------------------------------------------------
@@ -401,7 +405,7 @@ class pdf_azur extends ModelePDFPropales
 
                         // Incrémentez la variable comptant le nombre de lignes avec une remise
 						$this->atleastonediscount++;
-					}//---------------------------------------------------------------------
+					}//-------------------------------------------------------------
 				}
 				if (empty($this->atleastonediscount)) {
 					$delta = ($this->postotalht - $this->posxdiscount);
@@ -845,6 +849,9 @@ class pdf_azur extends ModelePDFPropales
 								$entity_product_file = $conf->entity;
 							}
 
+							
+
+
 							// If PDF is selected and file is not empty
 							if (count($filetomerge->lines) > 0) {
 								foreach ($filetomerge->lines as $linefile) {
@@ -1010,7 +1017,9 @@ class pdf_azur extends ModelePDFPropales
 			if ($object->deposit_percent > 0) {
 				$lib_condition_paiement = str_replace('__DEPOSIT_PERCENT__', $object->deposit_percent, $lib_condition_paiement);
 				$lib_condition_paiement = str_replace('__DEPOSIT_PERCENT_LEFT__', 100 - $object->deposit_percent, $lib_condition_paiement);
-				
+				// Add this line to set the deposit_amount in the object
+                //$object->deposit_percent = $deposit_percent;
+
 				$total_ttc = (!empty($conf->multicurrency->enabled) && $object->multicurrency_tx != 1) ? $object->multicurrency_total_ttc : $object->total_ttc;
 				
 				$sum_deposit = round(($object->deposit_percent / 100) *$total_ttc, 2);
@@ -1018,8 +1027,10 @@ class pdf_azur extends ModelePDFPropales
 				// Add this line to set the deposit_amount in the object
                 $object->deposit_amount = $sum_deposit;
 
+
 				$lib_condition_paiement = str_replace('__DEPOSIT_SUM__', number_format((float)$sum_deposit, 2, '.', ''), $lib_condition_paiement);
 				$lib_condition_paiement = str_replace('__DEPOSIT_SUM_LEFT__', number_format((float)$sum_deposit_left, 2, '.', ''), $lib_condition_paiement);
+				
 
 
 			}
@@ -1166,6 +1177,8 @@ class pdf_azur extends ModelePDFPropales
 		// $pdf->SetXY(10, $tab2_top + 0);
 		// $pdf->MultiCell(200, $tab2_hl, $condition, 0, 'L', 1);
 
+
+
 		// Récupérez les valeurs de remise depuis la session
         session_start();
         $absolute_discount = isset($_SESSION['absolute_discount']) ? $_SESSION['absolute_discount'] : 0;
@@ -1188,6 +1201,8 @@ class pdf_azur extends ModelePDFPropales
         $pdf->MultiCell($largcol2, $tab2_hl, price($this->total_discount_amount, 0, $outputlangs), 0, 'R', 1);
 
         // Total HT
+        /*---------------------------------------------------------*/
+                //--------------------------------------------------------
 
 		// Total HT
 		$pdf->SetFillColor(255, 255, 255);
