@@ -307,8 +307,17 @@ class pdf_eratosthene extends ModelePDFCommandes
 				$file = $dir."/SPECIMEN.pdf";
 			} else {
 				$objectref = dol_sanitizeFileName($object->ref);
+				$socid = dol_sanitizeFileName($object->socid);
+				$get_societe_name_query = "SELECT nom FROM `r2aw_societe` where rowid = ".$socid;
+				$resql = $db->query($get_societe_name_query);
+				$societe = $db->fetch_object($resql);
+				$nom_societe="";
+				if($societe){
+					$nom_societe = "-".$societe->nom;
+				}
+				$dir = $conf->propal->multidir_output[$object->entity]."/".$objectref;
 				$dir = $conf->commande->multidir_output[$object->entity]."/".$objectref;
-				$file = $dir."/".$objectref.".pdf";
+				$file = $dir."/Bon de preparation-".$objectref.$nom_societe.".pdf";
 			}
 
 			if (!file_exists($dir)) {

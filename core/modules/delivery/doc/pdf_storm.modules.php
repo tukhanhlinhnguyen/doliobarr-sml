@@ -178,7 +178,7 @@ class pdf_storm extends ModelePDFDeliveryOrder
 	public function write_file($object, $outputlangs, $srctemplatepath = '', $hidedetails = 0, $hidedesc = 0, $hideref = 0)
 	{
 		// phpcs:enable
-		global $user, $langs, $conf, $mysoc, $hookmanager;
+		global $user, $langs, $conf, $mysoc, $hookmanager, $db;
 
 		if (!is_object($outputlangs)) {
 			$outputlangs = $langs;
@@ -200,8 +200,17 @@ class pdf_storm extends ModelePDFDeliveryOrder
 				$file = $dir."/SPECIMEN.pdf";
 			} else {
 				$objectref = dol_sanitizeFileName($object->ref);
+				$socid = dol_sanitizeFileName($object->socid);
+				$get_societe_name_query = "SELECT nom FROM `r2aw_societe` where rowid = ".$socid;
+				$resql = $db->query($get_societe_name_query);
+				$societe = $db->fetch_object($resql);
+				$nom_societe="";
+				if($societe){
+					$nom_societe = "-".$societe->nom;
+				}
 				$dir = $conf->expedition->dir_output."/receipt/".$objectref;
-				$file = $dir."/".$objectref.".pdf";
+				$file = $dir."/Bon de livraison-".$objectref.$nom_societe.".pdf";
+
 			}
 
 			if (!file_exists($dir)) {
