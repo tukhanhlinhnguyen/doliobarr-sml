@@ -140,7 +140,7 @@ class Categories extends DolibarrApi
 			throw new RestException(401);
 		}
 
-		$sql = "SELECT t.rowid";
+		$sql = "SELECT t.rowid, t.fk_parent";
 		$sql .= " FROM ".MAIN_DB_PREFIX."categorie as t";
 		$sql .= ' WHERE t.entity IN ('.getEntity('category').')';
 		if (!empty($type)) {
@@ -171,21 +171,48 @@ class Categories extends DolibarrApi
 			$i = 0;
 			$num = $this->db->num_rows($result);
 			$min = min($num, ($limit <= 0 ? $num : $limit));
+			$categories_by_parent = array();
 			while ($i < $min) {
 				$obj = $this->db->fetch_object($result);
 				$category_static = new Categorie($this->db);
 				if ($category_static->fetch($obj->rowid)) {
-					$obj_ret[] = $this->_cleanObjectDatas($category_static);
+					$category_data = $this->_cleanObjectDatas($category_static);
+                    $categories_by_parent[$obj->fk_parent][] = $category_data;
 				}
 				$i++;
 			}
 		} else {
 			throw new RestException(503, 'Error when retrieve category list : '.$this->db->lasterror());
 		}
-		if (!count($obj_ret)) {
+
+		$structured_categories = array();
+		if (isset($categories_by_parent[0])) {
+        foreach ($categories_by_parent[0] as $parent_category) {
+        $category_data = array(
+            'fk_parent' => $parent_category->fk_parent,
+            'label' => $parent_category->label,
+            'description' => $parent_category->description,
+            'color' => $parent_category->color,
+            'visible' => $parent_category->visible,
+            'type' => $parent_category->type,
+            'id' => $parent_category->id,
+            'entity' => $parent_category->entity,
+            'user_creation' => $parent_category->user_creation,
+            'user_creation_id' => $parent_category->user_creation_id,
+            'user_modification' => $parent_category->user_modification,
+            'user_modification_id' => $parent_category->user_modification_id,
+            'date_creation' => $parent_category->date_creation,
+            'date_modification' => $parent_category->date_modification,
+            'subcategories' => $categories_by_parent[$parent_category->id] ?? []
+        );
+        $structured_categories[] = $category_data;
+        }
+        }
+        
+		if (!count($structured_categories)) {
 			throw new RestException(404, 'No category found');
 		}
-		return $obj_ret;
+		return $structured_categories;
 	}
 
 	/**
