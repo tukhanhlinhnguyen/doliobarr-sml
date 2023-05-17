@@ -208,11 +208,10 @@ class Orders extends DolibarrApi
 		// Add sql filters
 		if ($sqlfilters) {
 			$errormessage = '';
-			if (!DolibarrApi::_checkFilters($sqlfilters, $errormessage)) {
-				throw new RestException(503, 'Error when validating parameter sqlfilters -> '.$errormessage);
+			$sql .= forgeSQLFromUniversalSearchCriteria($sqlfilters, $errormessage);
+			if ($errormessage) {
+				throw new RestException(400, 'Error when validating parameter sqlfilters -> '.$errormessage);
 			}
-			$regexstring = '\(([^:\'\(\)]+:[^:\'\(\)]+:[^\(\)]+)\)';
-			$sql .= " AND (".preg_replace_callback('/'.$regexstring.'/', 'DolibarrApi::_forge_criteria_callback', $sqlfilters).")";
 		}
 
 		$sql .= $this->db->order($sortfield, $sortorder);
@@ -236,6 +235,27 @@ class Orders extends DolibarrApi
 				$obj = $this->db->fetch_object($result);
 				$commande_static = new Commande($this->db);
 				if ($commande_static->fetch($obj->rowid)) {
+					// Récupère les produits de la commande
+                $commande_static->fetchObjectLinked();
+
+            // Parcourt chaque produit et ajoute l'URL de l'image
+            if (isset($commande_static->lines) && is_array($commande_static->lines)) {
+                foreach ($commande_static->lines as $line) {
+                    if ($line->fk_product) {
+                        $product = new Product($this->db);
+                        if ($product->fetch($line->fk_product)) {
+                        	
+                            $product->url_photo_recto = DOL_MAIN_URL_ROOT . '/document.php?modulepart=produit&attachment=0&file=' 
+                                . substr($product->id, -1) . '/' 
+                                . substr($product->id, -2, 1) . '/' 
+                                . $product->id . '/photos/' 
+                                . $product->label . '_recto.jpg'
+                                . '&entity=1';
+                            $line->product_image_url = $product->url_photo_recto;
+                        }
+                    }
+                }
+            }
 					// Add external contacts ids
 					$tmparray = $commande_static->liste_contact(-1, 'external', 1);
 					if (is_array($tmparray)) {
@@ -244,6 +264,7 @@ class Orders extends DolibarrApi
 					// Add online_payment_url, cf #20477
 					require_once DOL_DOCUMENT_ROOT.'/core/lib/payments.lib.php';
 					$commande_static->online_payment_url = getOnlinePaymentUrl(0, 'order', $commande_static->ref);
+					
 
 					$obj_ret[] = $this->_cleanObjectDatas($commande_static);
 				}
