@@ -232,6 +232,27 @@ class Proposals extends DolibarrApi
 				$obj = $this->db->fetch_object($result);
 				$proposal_static = new Propal($this->db);
 				if ($proposal_static->fetch($obj->rowid)) {
+					// Récupère les produits de la proposition
+                $proposal_static->fetchObjectLinked();
+
+                // Parcourt chaque produit et ajoute l'URL de l'image
+                if (isset($proposal_static->lines) && is_array($proposal_static->lines)) {
+                    foreach ($proposal_static->lines as $line) {
+                        if ($line->fk_product) {
+                            $product = new Product($this->db);
+                            if ($product->fetch($line->fk_product)) {
+                                
+                                $product->url_photo_recto = DOL_MAIN_URL_ROOT . '/document.php?modulepart=produit&attachment=0&file=' 
+                                    . substr($product->id, -1) . '/' 
+                                    . substr($product->id, -2, 1) . '/' 
+                                    . $product->id . '/photos/' 
+                                    . $product->label . '_recto.jpg'
+                                    . '&entity=1';
+                                $line->product_image_url = $product->url_photo_recto;
+                            }
+                        }
+                    }
+                }
 					// Add external contacts ids
 					$tmparray = $proposal_static->liste_contact(-1, 'external', 1);
 					if (is_array($tmparray)) {
