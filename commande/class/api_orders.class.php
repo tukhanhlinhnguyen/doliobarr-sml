@@ -144,13 +144,13 @@ class Orders extends DolibarrApi
             if ($line->fk_product) {
                 $product = new Product($this->db);
                 if ($product->fetch($line->fk_product)) {
-                    $product->url_photo_recto = DOL_MAIN_URL_ROOT . '/document.php?modulepart=produit&attachment=0&file=' 
+                    $product->url_photo = DOL_MAIN_URL_ROOT . '/document.php?modulepart=produit&attachment=0&file=' 
                         . substr($product->id, -1) . '/' 
                         . substr($product->id, -2, 1) . '/' 
                         . $product->id . '/photos/' 
-                        . $product->label . '_recto.jpg'
+                        . $product->ref . '.jpg'
                         . '&entity=1';
-                    $line->product_image_url = $product->url_photo_recto;
+                    $line->product_image_url = $product->url_photo;
                 }
             }
         }

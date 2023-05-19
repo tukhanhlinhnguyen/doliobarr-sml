@@ -267,19 +267,12 @@ class Products extends DolibarrApi
 							}
 						}
 						//-------------------------------------------------------------------
-						// Ajouter les URLs des photos recto et verso
-                        $product_static->url_photo_recto = 'https://devdolibarrsml.societe-kali.fr/document.php?modulepart=produit&attachment=0&file=' 
+						// Ajouter les URLs des photos 
+                        $product_static->url_photo = 'https://devdolibarrsml.societe-kali.fr/document.php?modulepart=produit&attachment=0&file=' 
                             . substr($product_static->id, -1) . '/' 
                             . substr($product_static->id, -2, 1) . '/' 
                             . $product_static->id . '/photos/' 
-                            . $product_static->label . '_recto.jpg' 
-                            . '&entity=1';
-
-                        $product_static->url_photo_verso = 'https://devdolibarrsml.societe-kali.fr/document.php?modulepart=produit&attachment=0&file=' 
-                            . substr($product_static->id, -1) . '/' 
-                            . substr($product_static->id, -2, 1) . '/' 
-                            . $product_static->id . '/photos/' 
-                            . $product_static->label . '_verso.jpg' 
+                            . $product_static->ref . '.jpg' 
                             . '&entity=1';
 
 
