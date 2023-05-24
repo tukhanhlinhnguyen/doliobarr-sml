@@ -175,7 +175,7 @@ class Products extends DolibarrApi
 	 * @param  int    $includestockdata		Load also information about stock (slower)
 	 * @return array                		Array of product objects
 	 */
-	public function index($sortfield = "t.ref", $sortorder = 'ASC', $limit = 100, $page = 0, $mode = 0, $category = 0, $sqlfilters = '', $ids_only = false, $variant_filter = 0, $pagination_data = false, $includestockdata = 0)
+	public function index($sortfield = "t.ref", $sortorder = 'ASC', $limit = 100, $page = 0, $mode = 0, $category = 0, $sqlfilters = '', $ids_only = false, $variant_filter = 0, $pagination_data = false, $includestockdata = 0, $catfilter = 0)
 	{
 		global $db, $conf;
 
@@ -190,10 +190,15 @@ class Products extends DolibarrApi
 		$sql = "SELECT t.rowid, t.ref, t.ref_ext";
 		$sql .= " FROM ".$this->db->prefix()."product as t";
 		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."product_extrafields AS ef ON ef.fk_object = t.rowid";	// So we will be able to filter on extrafields
-		if ($category > 0) {
-			$sql .= ", ".$this->db->prefix()."categorie_product as c";
-		}
-		$sql .= ' WHERE t.entity IN ('.getEntity('product').')';
+		// Apply category filter
+        if ($category > 0) {
+	       $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."categorie_product AS c ON t.rowid = c.fk_product";
+        }
+
+        // Filter on entity
+        $sql .= ' WHERE t.entity IN ('.getEntity('product').')';
+
+
 
 		if ($variant_filter == 1) {
 			$sql .= ' AND t.rowid not in (select distinct fk_product_parent from '.$this->db->prefix().'product_attribute_combination)';
@@ -221,13 +226,13 @@ class Products extends DolibarrApi
 
 		// Add sql filters
 		if ($sqlfilters) {
+			// Add a join to the category_product table to enable filtering by category
+           $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."categorie_product AS c ON t.rowid = c.fk_product";
 			$errormessage = '';
-			if (!DolibarrApi::_checkFilters($sqlfilters, $errormessage)) {
-				throw new RestException(503, 'Error when validating parameter sqlfilters -> '.$errormessage);
+			$sql .= forgeSQLFromUniversalSearchCriteria($sqlfilters, $errormessage);
+			if ($errormessage) {
+				throw new RestException(400, 'Error when validating parameter sqlfilters -> '.$errormessage);
 			}
-			//var_dump($sqlfilters);exit;
-			$regexstring = '\(([^:\'\(\)]+:[^:\'\(\)]+:[^\(\)]+)\)';	// We must accept datc:<:2020-01-01 10:10:10
-			$sql .= " AND (".preg_replace_callback('/'.$regexstring.'/', 'DolibarrApi::_forge_criteria_callback', $sqlfilters).")";
 		}
 
 		//this query will return total products with the filters given
@@ -253,7 +258,7 @@ class Products extends DolibarrApi
 				if (!$ids_only) {
 					$product_static = new Product($this->db);
 					if ($product_static->fetch($obj->rowid)) {
-						if ($includestockdata && DolibarrApiAccess::$user->rights->stock->lire) {
+						if (!empty($includestockdata) && DolibarrApiAccess::$user->rights->stock->lire) {
 							$product_static->load_stock();
 
 							if (is_array($product_static->stock_warehouse)) {
@@ -266,14 +271,26 @@ class Products extends DolibarrApi
 								}
 							}
 						}
-						//-------------------------------------------------------------------
+						//echo $product_static->rowid;
 						// Ajouter les URLs des photos 
-                        $product_static->url_photo = 'https://devdolibarrsml.societe-kali.fr/document.php?modulepart=produit&attachment=0&file=' 
+                        $product_static->url_photo = DOL_MAIN_URL_ROOT . '/document.php?modulepart=produit&attachment=0&file=' 
                             . substr($product_static->id, -1) . '/' 
                             . substr($product_static->id, -2, 1) . '/' 
                             . $product_static->id . '/photos/' 
                             . $product_static->ref . '.jpg' 
                             . '&entity=1';
+
+                       // Filtrez les données du produit ici.
+                    /*$product_data = array(
+                        'ref' => $product_static->ref,
+                        'label' => $product_static->label,
+                        'qty' => 'product_static->stock_reel',
+                        'price' => $product_static->price,
+                        'description' =>$product_static->description,
+                        'url_photo' => $product_static->url_photo,
+                        // Ajoutez ici tous les autres champs dont vous avez besoin.
+                    );
+                    $obj_ret[] = $product_data;*/
 
 
 						$obj_ret[] = $this->_cleanObjectDatas($product_static);
