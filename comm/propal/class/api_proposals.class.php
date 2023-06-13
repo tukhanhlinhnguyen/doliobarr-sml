@@ -151,8 +151,8 @@ class Proposals extends DolibarrApi
                         . substr($product->id, -1) . '/' 
                         . substr($product->id, -2, 1) . '/' 
                         . $product->id . '/photos/' 
-                        . $product->ref . '.jpg'
-                        . '&entity=1';
+                        . $product-> DOL_MAIN_URL_ROOT . '/document.php?hashp=' 
+                            . $obj->share;
                     $line->product_image_url = $product->url_photo;
                 }
             }

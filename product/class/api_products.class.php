@@ -175,7 +175,7 @@ class Products extends DolibarrApi
 	 * @param  int    $includestockdata		Load also information about stock (slower)
 	 * @return array                		Array of product objects
 	 */
-	public function index($sortfield = "t.ref", $sortorder = 'ASC', $limit = 100, $page = 0, $mode = 0, $category = 0, $sqlfilters = '', $ids_only = false, $variant_filter = 0, $pagination_data = false, $includestockdata = 0, $catfilter = 0)
+	public function index($sortfield = "t.ref", $sortorder = 'ASC', $limit = 100, $page = 0, $mode = 0, $category = 0, $sqlfilters = '', $ids_only = false, $variant_filter = 0, $pagination_data = false, $includestockdata = 0, $label_filter = '')
 	{
 		global $db, $conf;
 
@@ -186,10 +186,20 @@ class Products extends DolibarrApi
 		$obj_ret = array();
 
 		$socid = DolibarrApiAccess::$user->socid ? DolibarrApiAccess::$user->socid : '';
+		$sql = "SELECT t.rowid, t.ref, t.ref_ext, f.share";
+        $sql .= " FROM ".$this->db->prefix()."product as t";
+        $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."product_extrafields AS ef ON ef.fk_object = t.rowid";   // So we will be able to filter on extrafields
+        $sql .= " LEFT JOIN (";
+        $sql .= "     SELECT src_object_id, src_object_type, share";
+        $sql .= "     FROM ".MAIN_DB_PREFIX."ecm_files";
+        $sql .= "     GROUP BY src_object_id, src_object_type";
+        $sql .= " ) as f ON f.src_object_id = t.rowid AND f.src_object_type = 'product'";
 
-		$sql = "SELECT t.rowid, t.ref, t.ref_ext";
+
+		/*$sql = "SELECT t.rowid, t.ref, t.ref_ext, f.share";
 		$sql .= " FROM ".$this->db->prefix()."product as t";
 		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."product_extrafields AS ef ON ef.fk_object = t.rowid";	// So we will be able to filter on extrafields
+		$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."ecm_files as f ON f.src_object_id = t.rowid AND f.src_object_type = 'product'";*/
 		// Apply category filter
         if ($category > 0) {
 	       $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."categorie_product AS c ON t.rowid = c.fk_product";
@@ -197,6 +207,13 @@ class Products extends DolibarrApi
 
         // Filter on entity
         $sql .= ' WHERE t.entity IN ('.getEntity('product').')';
+        //$sql .= ' AND f.share IS NOT NULL';
+
+        // Add label filter if specified
+        if (!empty($label_filter)) {
+           $sql .= ' AND t.label LIKE \'%' . $this->db->escape($label_filter) . '%\'';
+        }
+
 
 
 
@@ -227,7 +244,7 @@ class Products extends DolibarrApi
 		// Add sql filters
 		if ($sqlfilters) {
 			// Add a join to the category_product table to enable filtering by category
-           $sql .= " LEFT JOIN ".MAIN_DB_PREFIX."categorie_product AS c ON t.rowid = c.fk_product";
+           //$sql .= " LEFT JOIN ".MAIN_DB_PREFIX."categorie_product AS c ON t.rowid = c.fk_product";
 			$errormessage = '';
 			$sql .= forgeSQLFromUniversalSearchCriteria($sqlfilters, $errormessage);
 			if ($errormessage) {
@@ -258,6 +275,7 @@ class Products extends DolibarrApi
 				if (!$ids_only) {
 					$product_static = new Product($this->db);
 					if ($product_static->fetch($obj->rowid)) {
+						//$product_static->public_key = $obj->share;
 						if (!empty($includestockdata) && DolibarrApiAccess::$user->rights->stock->lire) {
 							$product_static->load_stock();
 
@@ -271,29 +289,41 @@ class Products extends DolibarrApi
 								}
 							}
 						}
+						// Ajouter les URLs des photos 
+                        //$product_static->url_photo = DOL_MAIN_URL_ROOT . '/document.php?hashp=' 
+                            //. $product_static->public_key;
+
 						//echo $product_static->rowid;
 						// Ajouter les URLs des photos 
-                        $product_static->url_photo = DOL_MAIN_URL_ROOT . '/document.php?modulepart=produit&attachment=0&file=' 
+                        /*$product_static->url_photo = DOL_MAIN_URL_ROOT . '/document.php?modulepart=produit&attachment=0&file=' 
                             . substr($product_static->id, -1) . '/' 
                             . substr($product_static->id, -2, 1) . '/' 
                             . $product_static->id . '/photos/' 
-                            . $product_static->ref . '.jpg' 
-                            . '&entity=1';
+                            . $product_static->id . '.jpg' 
+                            . '&entity=1';*/
 
                        // Filtrez les données du produit ici.
-                    /*$product_data = array(
+                       $product_data = array(
+                        'id' => $product_static->id,
                         'ref' => $product_static->ref,
                         'label' => $product_static->label,
-                        'qty' => 'product_static->stock_reel',
                         'price' => $product_static->price,
-                        'description' =>$product_static->description,
-                        'url_photo' => $product_static->url_photo,
+                        'weight' => $product_static->weight,
+                        'price_ttc' => $product_static->price_ttc,
+                        'entity' => $product_static->entity,
+                        'public_key' => $obj->share,
+                        'desired_stock' => $product_static->desired_stock,
+                        'seuil_stock_alert' => $product_static->seuil_stock_alert,
+                        'import_key' => $product_static->import_key,
+                        'url_photo' => DOL_MAIN_URL_ROOT . '/document.php?hashp=' 
+                            . $obj->share,
                         // Ajoutez ici tous les autres champs dont vous avez besoin.
-                    );
-                    $obj_ret[] = $product_data;*/
+                         );
+                    $obj_ret[] = $product_data;
 
 
-						$obj_ret[] = $this->_cleanObjectDatas($product_static);
+						//$product_static->share = $obj->share;
+						//$obj_ret[] = $this->_cleanObjectDatas($product_static);
 					}
 				} else {
 					$obj_ret[] = $obj->rowid;
