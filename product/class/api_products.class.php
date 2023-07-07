@@ -317,6 +317,7 @@ class Products extends DolibarrApi
                         'import_key' => $product_static->import_key,
                         'url_photo' => DOL_MAIN_URL_ROOT . '/document.php?hashp=' 
                             . $obj->share,
+						'tva_tx' => $product_static->tva_tx,
                         // Ajoutez ici tous les autres champs dont vous avez besoin.
                          );
                     $obj_ret[] = $product_data;
