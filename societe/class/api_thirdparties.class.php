@@ -1048,6 +1048,70 @@ class Thirdparties extends DolibarrApi
 		return $obj_ret;
 	}
 
+	/**
+	 * Get fixed amount discount of a thirdparty (all sources: deposit, credit note, commercial offers...)
+	 *
+	 * @param 	int 	$id             ID of the thirdparty
+	 * @param 	string 	$filter    	Filter exceptional discount. "none" will return every discount, "available" returns unapplied discounts, "used" returns applied discounts   {@choice none,available,used}
+	 * @param   string  $sortfield  	Sort field
+	 * @param   string  $sortorder  	Sort order
+	 *
+	 * @url     GET {id}/getFixedAmountDiscountsWithoutInvoice
+	 *
+	 * @return array  List of fixed discount of thirdparty
+	 *
+	 * @throws RestException 400
+	 * @throws RestException 401
+	 * @throws RestException 404
+	 * @throws RestException 503
+	 */
+	public function getFixedAmountDiscountsWithoutInvoice($id, $filter = "none", $sortfield = "f.type", $sortorder = 'ASC')
+	{
+		$obj_ret = array();
+
+		if (!DolibarrApiAccess::$user->rights->societe->lire) {
+			throw new RestException(401);
+		}
+
+		if (empty($id)) {
+			throw new RestException(400, 'Thirdparty ID is mandatory');
+		}
+
+		if (!DolibarrApi::_checkAccessToResource('societe', $id)) {
+			throw new RestException(401, 'Access not allowed for login '.DolibarrApiAccess::$user->login);
+		}
+
+		$result = $this->company->fetch($id);
+		if (!$result) {
+			throw new RestException(404, 'Thirdparty not found');
+		}
+
+
+		$sql = "SELECT re.fk_facture_source, re.rowid, re.amount_ht, re.amount_tva, re.amount_ttc, re.description, re.fk_facture, re.fk_facture_line, re.tva_tx";
+		$sql .= " FROM ".MAIN_DB_PREFIX."societe_remise_except as re";
+		$sql .= " WHERE re.fk_soc = ".((int) $id);
+		if ($filter == "available") {
+			$sql .= " AND re.fk_facture IS NULL AND re.fk_facture_line IS NULL";
+		}
+		if ($filter == "used") {
+			$sql .= " AND (re.fk_facture IS NOT NULL OR re.fk_facture_line IS NOT NULL)";
+		}
+
+		$sql .= $this->db->order($sortfield, $sortorder);
+
+		$result = $this->db->query($sql);
+		if (!$result) {
+			throw new RestException(503, $this->db->lasterror());
+		} else {
+			$num = $this->db->num_rows($result);
+			while ($obj = $this->db->fetch_object($result)) {
+				$obj_ret[] = $obj;
+			}
+		}
+
+		return $obj_ret;
+	}
+
 
 
 	/**
