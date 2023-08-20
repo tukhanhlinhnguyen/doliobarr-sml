@@ -1097,7 +1097,7 @@ class Thirdparties extends DolibarrApi
 			$sql .= " AND (re.fk_facture IS NOT NULL OR re.fk_facture_line IS NOT NULL)";
 		}
 
-		$sql .= $this->db->order($sortfield, $sortorder);
+		//$sql .= $this->db->order($sortfield, $sortorder);
 
 		$result = $this->db->query($sql);
 		if (!$result) {
