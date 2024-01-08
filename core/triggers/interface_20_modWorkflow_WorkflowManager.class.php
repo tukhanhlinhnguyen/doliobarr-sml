@@ -105,8 +105,12 @@ class InterfaceWorkflowManager extends DolibarrTriggers
 				$newobject->context['createfromorder'] = 'createfromorder';
 				$newobject->context['origin'] = $object->element;
 				$newobject->context['origin_id'] = $object->id;
+				$newobject->context['fk_statut'] = 1;
 
-				$ret = $newobject->createFromOrder($object, $user);
+				$newobject->createFromOrder($object, $user);
+				$newobject->validate($user);
+				$newobject->setUnpaid($user);
+				$ret = $newobject;
 				if ($ret < 0) {
 					$this->error = $newobject->error;
 					$this->errors[] = $newobject->error;
