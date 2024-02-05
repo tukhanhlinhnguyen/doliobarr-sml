@@ -84,8 +84,12 @@ class InterfaceWorkflowManager extends DolibarrTriggers
 					$newobject->context['createfrompropal'] = 'createfrompropal';
 					$newobject->context['origin'] = $object->element;
 					$newobject->context['origin_id'] = $object->id;
+					$newobject->context['fk_statut'] = 1;
 
-					$ret = $newobject->createFromProposal($object, $user);
+					$newobject->createFromProposal($object, $user);
+					$newobject->valid($user);
+
+					$ret = $newobject;
 					if ($ret < 0) {
 						$this->error = $newobject->error;
 						$this->errors[] = $newobject->error;
