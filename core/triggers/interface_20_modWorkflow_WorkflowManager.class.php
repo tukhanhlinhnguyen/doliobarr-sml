@@ -316,116 +316,123 @@ class InterfaceWorkflowManager extends DolibarrTriggers
 				/* -------------------------------------------------------------------------- */
 				/*                            INVOICE FROM SHIPMENT                           */
 				/* -------------------------------------------------------------------------- */
-
-
+				
 				$error = 0;
 				include_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
 
 				$newobject = new Facture($this->db);
+				$result = $object->fetchObjectLinked($object->id, 'shipping', null, 'facture');
+				$facture_id = array_values($object->linkedObjectsIds['facture'])[0];
 
-				// Closed order
-				$newobject->date = dol_now();
-				$newobject->source = 0;
+				if($facture_id){
+					//invoice already exist, not creating new one
+				}else{
+					// Closed order
+					$newobject->date = dol_now();
+					$newobject->source = 0;
 
-				$num = count($object->lines);
-				// var_dump($num);
+					$num = count($object->lines);
+					// var_dump($num);
 
-				// var_dump($newobject);
-				for ($i = 0; $i < $num; $i++) {
-				$line = new FactureLigne($this->db);
+					// var_dump($newobject);
+					for ($i = 0; $i < $num; $i++) {
+						$line = new FactureLigne($this->db);
 
-				$line->libelle = $object->lines[$i]->libelle; // deprecated
-				$line->label			= $object->lines[$i]->label;
-				$line->desc				= $object->lines[$i]->desc;
-				$line->subprice			= $object->lines[$i]->subprice;
-				$line->total_ht			= $object->lines[$i]->total_ht;
-				$line->total_tva		= $object->lines[$i]->total_tva;
-				$line->total_localtax1	= $object->lines[$i]->total_localtax1;
-				$line->total_localtax2	= $object->lines[$i]->total_localtax2;
-				$line->total_ttc		= $object->lines[$i]->total_ttc;
-				$line->vat_src_code = $object->lines[$i]->vat_src_code;
-				$line->tva_tx = $object->lines[$i]->tva_tx;
-				$line->localtax1_tx		= $object->lines[$i]->localtax1_tx;
-				$line->localtax2_tx		= $object->lines[$i]->localtax2_tx;
-				$line->qty = $object->lines[$i]->qty;
-				$line->fk_remise_except = $object->lines[$i]->fk_remise_except;
-				$line->remise_percent = $object->lines[$i]->remise_percent;
-				$line->fk_product = $object->lines[$i]->fk_product;
-				$line->info_bits = $object->lines[$i]->info_bits;
-				$line->product_type		= $object->lines[$i]->product_type;
-				$line->rang = $object->lines[$i]->rang;
-				$line->special_code		= $object->lines[$i]->special_code;
-				$line->fk_parent_line = $object->lines[$i]->fk_parent_line;
-				$line->fk_unit = $object->lines[$i]->fk_unit;
-				$line->date_start = $object->lines[$i]->date_start;
-				$line->date_end = $object->lines[$i]->date_end;
+						$line->libelle = $object->lines[$i]->libelle; // deprecated
+						$line->label			= $object->lines[$i]->label;
+						$line->desc				= $object->lines[$i]->desc;
+						$line->subprice			= $object->lines[$i]->subprice;
+						$line->total_ht			= $object->lines[$i]->total_ht;
+						$line->total_tva		= $object->lines[$i]->total_tva;
+						$line->total_localtax1	= $object->lines[$i]->total_localtax1;
+						$line->total_localtax2	= $object->lines[$i]->total_localtax2;
+						$line->total_ttc		= $object->lines[$i]->total_ttc;
+						$line->vat_src_code = $object->lines[$i]->vat_src_code;
+						$line->tva_tx = $object->lines[$i]->tva_tx;
+						$line->localtax1_tx		= $object->lines[$i]->localtax1_tx;
+						$line->localtax2_tx		= $object->lines[$i]->localtax2_tx;
+						$line->qty = $object->lines[$i]->qty;
+						$line->fk_remise_except = $object->lines[$i]->fk_remise_except;
+						$line->remise_percent = $object->lines[$i]->remise_percent;
+						$line->fk_product = $object->lines[$i]->fk_product;
+						$line->info_bits = $object->lines[$i]->info_bits;
+						$line->product_type		= $object->lines[$i]->product_type;
+						$line->rang = $object->lines[$i]->rang;
+						$line->special_code		= $object->lines[$i]->special_code;
+						$line->fk_parent_line = $object->lines[$i]->fk_parent_line;
+						$line->fk_unit = $object->lines[$i]->fk_unit;
+						$line->date_start = $object->lines[$i]->date_start;
+						$line->date_end = $object->lines[$i]->date_end;
 
-				// Multicurrency
-				$line->fk_multicurrency = $object->lines[$i]->fk_multicurrency;
-				$line->multicurrency_code = $object->lines[$i]->multicurrency_code;
-				$line->multicurrency_subprice = $object->lines[$i]->multicurrency_subprice;
-				$line->multicurrency_total_ht = $object->lines[$i]->multicurrency_total_ht;
-				$line->multicurrency_total_tva = $object->lines[$i]->multicurrency_total_tva;
-				$line->multicurrency_total_ttc = $object->lines[$i]->multicurrency_total_ttc;
+						// Multicurrency
+						$line->fk_multicurrency = $object->lines[$i]->fk_multicurrency;
+						$line->multicurrency_code = $object->lines[$i]->multicurrency_code;
+						$line->multicurrency_subprice = $object->lines[$i]->multicurrency_subprice;
+						$line->multicurrency_total_ht = $object->lines[$i]->multicurrency_total_ht;
+						$line->multicurrency_total_tva = $object->lines[$i]->multicurrency_total_tva;
+						$line->multicurrency_total_ttc = $object->lines[$i]->multicurrency_total_ttc;
 
-				$line->fk_fournprice = $object->lines[$i]->fk_fournprice;
-				$marginInfos			= getMarginInfos($object->lines[$i]->subprice, $object->lines[$i]->remise_percent, $object->lines[$i]->tva_tx, $object->lines[$i]->localtax1_tx, $object->lines[$i]->localtax2_tx, $object->lines[$i]->fk_fournprice, $object->lines[$i]->pa_ht);
-				$line->pa_ht			= $marginInfos[0];
+						$line->fk_fournprice = $object->lines[$i]->fk_fournprice;
+						$marginInfos			= getMarginInfos($object->lines[$i]->subprice, $object->lines[$i]->remise_percent, $object->lines[$i]->tva_tx, $object->lines[$i]->localtax1_tx, $object->lines[$i]->localtax2_tx, $object->lines[$i]->fk_fournprice, $object->lines[$i]->pa_ht);
+						$line->pa_ht			= $marginInfos[0];
 
-				// get extrafields from original line
-				$object->lines[$i]->fetch_optionals();
-				foreach ($object->lines[$i]->array_options as $options_key => $value) {
-					$line->array_options[$options_key] = $value;
+						// get extrafields from original line
+						$object->lines[$i]->fetch_optionals();
+						foreach ($object->lines[$i]->array_options as $options_key => $value) {
+							$line->array_options[$options_key] = $value;
+						}
+
+						$newobject->lines[$i] = $line;
+					}
+
+					$newobject->socid                = $object->socid;
+					$newobject->fk_project           = $object->fk_project;
+					$newobject->fk_account = $object->fk_account;
+					$newobject->cond_reglement_id    = $object->cond_reglement_id;
+					$newobject->mode_reglement_id    = $object->mode_reglement_id;
+					$newobject->availability_id      = $object->availability_id;
+					$newobject->demand_reason_id     = $object->demand_reason_id;
+					$newobject->delivery_date        = (empty($object->delivery_date) ? $object->date_livraison : $object->delivery_date);
+					$newobject->date_livraison       = $object->delivery_date; // deprecated
+					$newobject->fk_delivery_address  = $object->fk_delivery_address; // deprecated
+					$newobject->contact_id           = $object->contact_id;
+					$newobject->ref_client           = $object->ref_client;
+
+					if (empty($conf->global->MAIN_DISABLE_PROPAGATE_NOTES_FROM_ORIGIN)) {
+						$newobject->note_private = $object->note_private;
+						$newobject->note_public = $object->note_public;
+					}
+
+					$newobject->module_source = $object->module_source;
+					$newobject->pos_source = $object->pos_source;
+
+					$newobject->origin = $object->element;
+					$newobject->origin_id = $object->id;
+
+					$newobject->fk_user_author = $user->id;
+
+					// get extrafields from original line
+					$object->fetch_optionals();
+					foreach ($object->array_options as $options_key => $value) {
+						$newobject->array_options[$options_key] = $value;
+					}
+
+					// Possibility to add external linked objects with hooks
+					$newobject->linked_objects[$newobject->origin] = $newobject->origin_id;
+					if($object->origin && $object->origin_id){
+						$newobject->linked_objects[$object->origin] = $object->origin_id;
+					}
+
+					if (!empty($object->other_linked_objects) && is_array($object->other_linked_objects)) {
+						$newobject->linked_objects = array_merge($newobject->linked_objects, $object->other_linked_objects);
+					}
+
+					$newobject->create($user);
+
+					$newobject->validate($user);
+					$newobject->setUnpaid($user);
+
 				}
-
-				$newobject->lines[$i] = $line;
-			}
-
-				$newobject->socid                = $object->socid;
-				$newobject->fk_project           = $object->fk_project;
-				$newobject->fk_account = $object->fk_account;
-				$newobject->cond_reglement_id    = $object->cond_reglement_id;
-				$newobject->mode_reglement_id    = $object->mode_reglement_id;
-				$newobject->availability_id      = $object->availability_id;
-				$newobject->demand_reason_id     = $object->demand_reason_id;
-				$newobject->delivery_date        = (empty($object->delivery_date) ? $object->date_livraison : $object->delivery_date);
-				$newobject->date_livraison       = $object->delivery_date; // deprecated
-				$newobject->fk_delivery_address  = $object->fk_delivery_address; // deprecated
-				$newobject->contact_id           = $object->contact_id;
-				$newobject->ref_client           = $object->ref_client;
-
-				if (empty($conf->global->MAIN_DISABLE_PROPAGATE_NOTES_FROM_ORIGIN)) {
-					$newobject->note_private = $object->note_private;
-					$newobject->note_public = $object->note_public;
-				}
-
-				$newobject->module_source = $object->module_source;
-				$newobject->pos_source = $object->pos_source;
-
-				$newobject->origin = $object->element;
-				$newobject->origin_id = $object->id;
-
-				$newobject->fk_user_author = $user->id;
-
-				// get extrafields from original line
-				$object->fetch_optionals();
-				foreach ($object->array_options as $options_key => $value) {
-					$newobject->array_options[$options_key] = $value;
-				}
-
-				// Possibility to add external linked objects with hooks
-				$newobject->linked_objects[$newobject->origin] = $newobject->origin_id;
-				if (!empty($object->other_linked_objects) && is_array($object->other_linked_objects)) {
-					$newobject->linked_objects = array_merge($newobject->linked_objects, $object->other_linked_objects);
-				}
-
-				$newobject->create($user);
-
-				$newobject->validate($user);
-				$newobject->setUnpaid($user);
-
-
-
 
 				/* -------------------------------------------------------------------------- */
 				/*                            INVOICE FROM SHIPMENT                           */
