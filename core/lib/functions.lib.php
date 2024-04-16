@@ -6527,6 +6527,14 @@ function get_default_tva(Societe $thirdparty_seller, Societe $thirdparty_buyer, 
 		return 0;
 	}
 
+	// If we sell to corse => 2.1% TVA
+	$buyer_zip = $thirdparty_buyer->zip;
+
+	if (substr( $buyer_zip, 0, 2 ) === "20") {
+		//print 'VATRULE 1';
+		return 2.1;
+	}
+
 	// Le test ci-dessus ne devrait pas etre necessaire. Me signaler l'exemple du cas juridique concerne si le test suivant n'est pas suffisant.
 
 	// Si le (pays vendeur = pays acheteur) alors la TVA par defaut=TVA du produit vendu. Fin de regle.
