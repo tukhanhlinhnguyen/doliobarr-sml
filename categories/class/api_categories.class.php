@@ -140,8 +140,8 @@ class Categories extends DolibarrApi
 			throw new RestException(401);
 		}
 
-		$sql = "SELECT t.rowid, t.fk_parent";
-		$sql .= " FROM ".MAIN_DB_PREFIX."categorie as t";
+		$sql = "SELECT t.rowid";
+		$sql .= " FROM ".MAIN_DB_PREFIX."categorie AS t LEFT JOIN ".MAIN_DB_PREFIX."categories_extrafields AS ef ON (ef.fk_object = t.rowid)"; // Modification VMR Global Solutions to include extrafields as search parameters in the API GET call, so we will be able to filter on extrafields
 		$sql .= ' WHERE t.entity IN ('.getEntity('category').')';
 		if (!empty($type)) {
 			$sql .= ' AND t.type='.array_search($type, Categories::$TYPES);
@@ -149,11 +149,10 @@ class Categories extends DolibarrApi
 		// Add sql filters
 		if ($sqlfilters) {
 			$errormessage = '';
-			if (!DolibarrApi::_checkFilters($sqlfilters, $errormessage)) {
-				throw new RestException(503, 'Error when validating parameter sqlfilters -> '.$errormessage);
+			$sql .= forgeSQLFromUniversalSearchCriteria($sqlfilters, $errormessage);
+			if ($errormessage) {
+				throw new RestException(400, 'Error when validating parameter sqlfilters -> '.$errormessage);
 			}
-			$regexstring = '\(([^:\'\(\)]+:[^:\'\(\)]+:[^\(\)]+)\)';
-			$sql .= " AND (".preg_replace_callback('/'.$regexstring.'/', 'DolibarrApi::_forge_criteria_callback', $sqlfilters).")";
 		}
 
 		$sql .= $this->db->order($sortfield, $sortorder);
@@ -171,48 +170,21 @@ class Categories extends DolibarrApi
 			$i = 0;
 			$num = $this->db->num_rows($result);
 			$min = min($num, ($limit <= 0 ? $num : $limit));
-			$categories_by_parent = array();
 			while ($i < $min) {
 				$obj = $this->db->fetch_object($result);
 				$category_static = new Categorie($this->db);
 				if ($category_static->fetch($obj->rowid)) {
-					$category_data = $this->_cleanObjectDatas($category_static);
-                    $categories_by_parent[$obj->fk_parent][] = $category_data;
+					$obj_ret[] = $this->_cleanObjectDatas($category_static);
 				}
 				$i++;
 			}
 		} else {
 			throw new RestException(503, 'Error when retrieve category list : '.$this->db->lasterror());
 		}
-
-		$structured_categories = array();
-		if (isset($categories_by_parent[0])) {
-        foreach ($categories_by_parent[0] as $parent_category) {
-        $category_data = array(
-            'fk_parent' => $parent_category->fk_parent,
-            'label' => $parent_category->label,
-            'description' => $parent_category->description,
-            'color' => $parent_category->color,
-            'visible' => $parent_category->visible,
-            'type' => $parent_category->type,
-            'id' => $parent_category->id,
-            'entity' => $parent_category->entity,
-            'user_creation' => $parent_category->user_creation,
-            'user_creation_id' => $parent_category->user_creation_id,
-            'user_modification' => $parent_category->user_modification,
-            'user_modification_id' => $parent_category->user_modification_id,
-            'date_creation' => $parent_category->date_creation,
-            'date_modification' => $parent_category->date_modification,
-            'subcategories' => $categories_by_parent[$parent_category->id] ?? []
-        );
-        $structured_categories[] = $category_data;
-        }
-        }
-        
-		if (!count($structured_categories)) {
+		if (!count($obj_ret)) {
 			throw new RestException(404, 'No category found');
 		}
-		return $structured_categories;
+		return $obj_ret;
 	}
 
 	/**
@@ -342,7 +314,7 @@ class Categories extends DolibarrApi
 			throw new RestException(401);
 		} elseif ($type == Categorie::TYPE_CONTACT && !DolibarrApiAccess::$user->rights->contact->lire) {
 			throw new RestException(401);
-		} elseif ($type == Categorie::TYPE_CUSTOMER && !DolibarrApiAccess::$user->rights->societe->lire) {
+		} elseif ($type == Categorie::TYPE_CUSTOMER && !DolibarrApiAccess::$user->hasRight('societe', 'lire')) {
 			throw new RestException(401);
 		} elseif ($type == Categorie::TYPE_SUPPLIER && !DolibarrApiAccess::$user->rights->fournisseur->lire) {
 			throw new RestException(401);
@@ -350,7 +322,7 @@ class Categories extends DolibarrApi
 			throw new RestException(401);
 		} elseif ($type == Categorie::TYPE_PROJECT && !DolibarrApiAccess::$user->rights->projet->lire) {
 			throw new RestException(401);
-		} elseif ($type == Categorie::TYPE_KNOWLEDGEMANAGEMENT && !DolibarrApiAccess::$user->rights->knowledgemanagement->knowledgerecord->read) {
+		} elseif ($type == Categorie::TYPE_KNOWLEDGEMANAGEMENT && !DolibarrApiAccess::$user->hasRight('knowledgemanagement', 'knowledgerecord', 'read')) {
 			throw new RestException(401);
 		}
 
@@ -413,7 +385,7 @@ class Categories extends DolibarrApi
 			}
 			$object = new Contact($this->db);
 		} elseif ($type === Categorie::TYPE_MEMBER) {
-			if (!DolibarrApiAccess::$user->rights->adherent->creer) {
+			if (!DolibarrApiAccess::$user->hasRight('adherent', 'creer')) {
 				throw new RestException(401);
 			}
 			$object = new Adherent($this->db);
@@ -493,7 +465,7 @@ class Categories extends DolibarrApi
 			}
 			$object = new Contact($this->db);
 		} elseif ($type === Categorie::TYPE_MEMBER) {
-			if (!DolibarrApiAccess::$user->rights->adherent->creer) {
+			if (!DolibarrApiAccess::$user->hasRight('adherent', 'creer')) {
 				throw new RestException(401);
 			}
 			$object = new Adherent($this->db);
@@ -573,7 +545,7 @@ class Categories extends DolibarrApi
 			}
 			$object = new Contact($this->db);
 		} elseif ($type === Categorie::TYPE_MEMBER) {
-			if (!DolibarrApiAccess::$user->rights->adherent->creer) {
+			if (!DolibarrApiAccess::$user->hasRight('adherent', 'creer')) {
 				throw new RestException(401);
 			}
 			$object = new Adherent($this->db);
@@ -651,7 +623,7 @@ class Categories extends DolibarrApi
 			}
 			$object = new Contact($this->db);
 		} elseif ($type === Categorie::TYPE_MEMBER) {
-			if (!DolibarrApiAccess::$user->rights->adherent->creer) {
+			if (!DolibarrApiAccess::$user->hasRight('adherent', 'creer')) {
 				throw new RestException(401);
 			}
 			$object = new Adherent($this->db);
@@ -709,9 +681,6 @@ class Categories extends DolibarrApi
 		unset($object->total_ttc);
 		unset($object->total_tva);
 		unset($object->lines);
-		unset($object->fk_incoterms);
-		unset($object->label_incoterms);
-		unset($object->location_incoterms);
 		unset($object->civility_id);
 		unset($object->name);
 		unset($object->lastname);

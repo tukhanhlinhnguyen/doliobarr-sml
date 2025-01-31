@@ -31,8 +31,6 @@
  *	\brief      File of Class to generate PDF proposal with Azur template
  */
 
-
-
 require_once DOL_DOCUMENT_ROOT.'/core/modules/propale/modules_propale.php';
 require_once DOL_DOCUMENT_ROOT.'/product/class/product.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/company.lib.php';
@@ -49,6 +47,11 @@ class pdf_azur extends ModelePDFPropales
 	 * @var DoliDb Database handler
 	 */
 	public $db;
+
+	/**
+	 * @var int The environment ID when using a multicompany module
+	 */
+	public $entity;
 
 	/**
 	 * @var string model name
@@ -69,12 +72,6 @@ class pdf_azur extends ModelePDFPropales
 	 * @var string document type
 	 */
 	public $type;
-
-	/**
-	 * @var array Minimum version of PHP required by module.
-	 * e.g.: PHP ≥ 5.6 = array(5, 6)
-	 */
-	public $phpmin = array(5, 6);
 
 	/**
 	 * Dolibarr version of the loaded document
@@ -147,10 +144,10 @@ class pdf_azur extends ModelePDFPropales
 		$this->page_largeur = $formatarray['width'];
 		$this->page_hauteur = $formatarray['height'];
 		$this->format = array($this->page_largeur, $this->page_hauteur);
-		$this->marge_gauche = isset($conf->global->MAIN_PDF_MARGIN_LEFT) ? $conf->global->MAIN_PDF_MARGIN_LEFT : 10;
-		$this->marge_droite = isset($conf->global->MAIN_PDF_MARGIN_RIGHT) ? $conf->global->MAIN_PDF_MARGIN_RIGHT : 10;
-		$this->marge_haute = isset($conf->global->MAIN_PDF_MARGIN_TOP) ? $conf->global->MAIN_PDF_MARGIN_TOP : 10;
-		$this->marge_basse = isset($conf->global->MAIN_PDF_MARGIN_BOTTOM) ? $conf->global->MAIN_PDF_MARGIN_BOTTOM : 10;
+		$this->marge_gauche = getDolGlobalInt('MAIN_PDF_MARGIN_LEFT', 10);
+		$this->marge_droite = getDolGlobalInt('MAIN_PDF_MARGIN_RIGHT', 10);
+		$this->marge_haute = getDolGlobalInt('MAIN_PDF_MARGIN_TOP', 10);
+		$this->marge_basse = getDolGlobalInt('MAIN_PDF_MARGIN_BOTTOM', 10);
 
 		$this->option_logo = 1; // Display logo
 		$this->option_tva = 1; // Manage the vat option FACTURE_TVAOPTION
@@ -171,19 +168,19 @@ class pdf_azur extends ModelePDFPropales
 
 		// Define position of columns
 		$this->posxdesc = $this->marge_gauche + 1;
-		if (!empty($conf->global->PRODUCT_USE_UNITS)) {
+		if (getDolGlobalInt('PRODUCT_USE_UNITS')) {
 			$this->posxtva = 101;
 			$this->posxup = 118;
-			$this->posxqty = 134;
+			$this->posxqty = 135;
 			$this->posxunit = 151;
 		} else {
 			$this->posxtva = 106;
 			$this->posxup = 122;
-			$this->posxqty = 144;
+			$this->posxqty = 145;
 			$this->posxunit = 162;
 		}
 		$this->posxdiscount = 162;
-		$this->postotalht = 180;
+		$this->postotalht = 174;
 		if (!empty($conf->global->MAIN_GENERATE_DOCUMENTS_WITHOUT_VAT) || !empty($conf->global->MAIN_GENERATE_DOCUMENTS_WITHOUT_VAT_COLUMN)) {
 			$this->posxtva = $this->posxup;
 		}
@@ -203,8 +200,7 @@ class pdf_azur extends ModelePDFPropales
 		$this->localtax1 = array();
 		$this->localtax2 = array();
 		$this->atleastoneratenotnull = 0;
-		//we use discount column for another purpose
-		$this->atleastonediscount = 1;
+		$this->atleastonediscount = 0;
 	}
 
 	// phpcs:disable PEAR.NamingConventions.ValidFunctionName.ScopeNotCamelCaps
@@ -246,8 +242,8 @@ class pdf_azur extends ModelePDFPropales
 		}
 
 		//  Show Draft Watermark
-		if ($object->statut == $object::STATUS_DRAFT && (!empty($conf->global->PROPALE_DRAFT_WATERMARK))) {
-			$this->watermark = $conf->global->PROPALE_DRAFT_WATERMARK;
+		if ($object->statut == $object::STATUS_DRAFT && getDolGlobalString('PROPALE_DRAFT_WATERMARK')) {
+			$this->watermark = getDolGlobalString('PROPALE_DRAFT_WATERMARK');
 		}
 
 		$nblines = count($object->lines);
@@ -265,7 +261,7 @@ class pdf_azur extends ModelePDFPropales
 
 				$objphoto->fetch($object->lines[$i]->fk_product);
 				//var_dump($objphoto->ref);exit;
-				if (!empty($conf->global->PRODUCT_USE_OLD_PATH_FOR_PHOTO)) {
+				if (getDolGlobalInt('PRODUCT_USE_OLD_PATH_FOR_PHOTO')) {
 					$pdir[0] = get_exdir($objphoto->id, 2, 0, 0, $objphoto, 'product').$objphoto->id."/photos/";
 					$pdir[1] = get_exdir(0, 0, 0, 0, $objphoto, 'product').dol_sanitizeFileName($objphoto->ref).'/';
 				} else {
@@ -283,7 +279,7 @@ class pdf_azur extends ModelePDFPropales
 							$dir = $conf->product->dir_output.'/'.$midir; //Check repertory of the current product
 						}
 						foreach ($objphoto->liste_photos($dir, 1) as $key => $obj) {
-							if (empty($conf->global->CAT_HIGH_QUALITY_IMAGES)) {		// If CAT_HIGH_QUALITY_IMAGES not defined, we use thumb if defined and then original photo
+							if (!getDolGlobalInt('CAT_HIGH_QUALITY_IMAGES')) {		// If CAT_HIGH_QUALITY_IMAGES not defined, we use thumb if defined and then original photo
 								if ($obj['photo_vignette']) {
 									$filename = $obj['photo_vignette'];
 								} else {
@@ -321,16 +317,8 @@ class pdf_azur extends ModelePDFPropales
 				$file = $dir."/SPECIMEN.pdf";
 			} else {
 				$objectref = dol_sanitizeFileName($object->ref);
-				$socid = dol_sanitizeFileName($object->socid);
-				$get_societe_name_query = "SELECT nom FROM `r2aw_societe` where rowid = ".$socid;
-				$resql = $db->query($get_societe_name_query);
-				$societe = $db->fetch_object($resql);
-				$nom_societe="";
-				if($societe){
-					$nom_societe = "-".$societe->nom;
-				}
 				$dir = $conf->propal->multidir_output[$object->entity]."/".$objectref;
-				$file = $dir."/DEVIS-".$objectref.$nom_societe.".pdf";
+				$file = $dir."/".$objectref.".pdf";
 			}
 
 			if (!file_exists($dir)) {
@@ -384,28 +372,17 @@ class pdf_azur extends ModelePDFPropales
 				$pdf->SetCreator("Dolibarr ".DOL_VERSION);
 				$pdf->SetAuthor($outputlangs->convToOutputCharset($user->getFullName($outputlangs)));
 				$pdf->SetKeyWords($outputlangs->convToOutputCharset($object->ref)." ".$outputlangs->transnoentities("PdfCommercialProposalTitle")." ".$outputlangs->convToOutputCharset($object->thirdparty->name));
-				if (!empty($conf->global->MAIN_DISABLE_PDF_COMPRESSION)) {
+				if (getDolGlobalString('MAIN_DISABLE_PDF_COMPRESSION')) {
 					$pdf->SetCompression(false);
 				}
 
 				$pdf->SetMargins($this->marge_gauche, $this->marge_haute, $this->marge_droite); // Left, Top, Right
 
 				// Set $this->atleastonediscount if you have at least one discount
-				// Initialisez la variable pour compter le montant total des remises
-                $this->total_discount_amount = 0;
 				for ($i = 0; $i < $nblines; $i++) {
 					if ($object->lines[$i]->remise_percent) {
-						// ----------------------------------------------------------
-						// Calculez le montant de la remise pour cette ligne
-                        $line_total_excl_tax = pdf_getlinetotalexcltax($object, $i, $outputlangs, $hidedetails);
-                        $line_discount_amount = $line_total_excl_tax * $object->lines[$i]->remise_percent / 100;
-
-                        // Ajoutez le montant de la remise à la variable du montant total des remises
-                        $this->total_discount_amount += $line_discount_amount;
-
-                        // Incrémentez la variable comptant le nombre de lignes avec une remise
 						$this->atleastonediscount++;
-					}//-------------------------------------------------------------
+					}
 				}
 				if (empty($this->atleastonediscount)) {
 					$delta = ($this->postotalht - $this->posxdiscount);
@@ -441,11 +418,11 @@ class pdf_azur extends ModelePDFPropales
 
 
 				$tab_top = 90 + $top_shift;
-				$tab_top_newpage = (empty($conf->global->MAIN_PDF_DONOTREPEAT_HEAD) ? 42 + $top_shift : 10);
+				$tab_top_newpage = (!getDolGlobalInt('MAIN_PDF_DONOTREPEAT_HEAD') ? 42 + $top_shift : 10);
 
 				// Incoterm
 				$height_incoterms = 0;
-				if (!empty($conf->incoterm->enabled)) {
+				if (isModEnabled('incoterm')) {
 					$desc_incoterms = $object->getIncotermsForPDF();
 					if ($desc_incoterms) {
 						$tab_top -= 2;
@@ -544,7 +521,7 @@ class pdf_azur extends ModelePDFPropales
 						if (!empty($tplidx)) {
 							$pdf->useTemplate($tplidx);
 						}
-						if (empty($conf->global->MAIN_PDF_DONOTREPEAT_HEAD)) {
+						if (!getDolGlobalInt('MAIN_PDF_DONOTREPEAT_HEAD')) {
 							$this->_pagehead($pdf, $object, 0, $outputlangs);
 						}
 						$pdf->setPage($pageposbefore + 1);
@@ -566,24 +543,16 @@ class pdf_azur extends ModelePDFPropales
 						$posYAfterImage = $curY + $imglinesize['height'];
 					}
 
-
-					
-					$curX = $this->posxdesc - 1 + 10;
+					// Description of product line
+					$curX = $this->posxdesc - 1;
 
 					$pdf->startTransaction();
-					// Index line
-					$pdf->SetXY($this->posxdesc - 1, $curY);
-					$pdf->MultiCell($this->posxdesc - 1, 3, $i+1, 0, 'R');
-					// Description of product line
 					pdf_writelinedesc($pdf, $object, $i, $outputlangs, $this->posxpicture - $curX, 3, $curX, $curY, $hideref, $hidedesc);
 					$pageposafter = $pdf->getPage();
 					if ($pageposafter > $pageposbefore) {	// There is a pagebreak
 						$pdf->rollbackTransaction(true);
 						$pageposafter = $pageposbefore;
 						//print $pageposafter.'-'.$pageposbefore;exit;
-						// Index line
-						$pdf->SetXY($this->posxdesc - 1, $curY);
-						$pdf->MultiCell($this->posxdesc - 1, 3, $i+1, 0, 'R');
 						$pdf->setPageOrientation('', 1, $heightforfooter); // The only function to edit the bottom margin of current page to set it.
 						pdf_writelinedesc($pdf, $object, $i, $outputlangs, $this->posxpicture - $curX, 3, $curX, $curY, $hideref, $hidedesc);
 
@@ -596,7 +565,7 @@ class pdf_azur extends ModelePDFPropales
 								if (!empty($tplidx)) {
 									$pdf->useTemplate($tplidx);
 								}
-								if (empty($conf->global->MAIN_PDF_DONOTREPEAT_HEAD)) {
+								if (!getDolGlobalInt('MAIN_PDF_DONOTREPEAT_HEAD')) {
 									$this->_pagehead($pdf, $object, 0, $outputlangs);
 								}
 								$pdf->setPage($pageposafter + 1);
@@ -639,47 +608,38 @@ class pdf_azur extends ModelePDFPropales
 						$pdf->MultiCell($this->posxup - $this->posxtva + 4, 3, $vat_rate, 0, 'R');
 					}
 
-					// Quantity
-					$qty = pdf_getlineqty($object, $i, $outputlangs, $hidedetails);
-					$pdf->SetXY($this->posxup, $curY);
-					$pdf->MultiCell($this->posxqty - $this->posxup - 0.8, 3, $qty, 0, 'R', 0);
-
-					
 					// Unit price before discount
 					$up_excl_tax = pdf_getlineupexcltax($object, $i, $outputlangs, $hidedetails);
+					$pdf->SetXY($this->posxup, $curY);
+					$pdf->MultiCell($this->posxqty - $this->posxup - 0.8, 3, $up_excl_tax, 0, 'R', 0);
+
+					// Quantity
+					$qty = pdf_getlineqty($object, $i, $outputlangs, $hidedetails);
 					$pdf->SetXY($this->posxqty, $curY);
-					$pdf->MultiCell($this->posxunit - $this->posxqty - 0.8, 4, $up_excl_tax, 0, 'R'); // Enough for 6 chars
+					$pdf->MultiCell($this->posxunit - $this->posxqty - 0.8, 4, $qty, 0, 'R'); // Enough for 6 chars
 
 					// Unit
-					if (!empty($conf->global->PRODUCT_USE_UNITS)) {
+					if (getDolGlobalInt('PRODUCT_USE_UNITS')) {
 						$unit = pdf_getlineunit($object, $i, $outputlangs, $hidedetails, $hookmanager);
 						$pdf->SetXY($this->posxunit, $curY);
-						$pdf->MultiCell($this->posxdiscount - $this->posxunit - 0.8, 4, 1, 0, 'L');
+						$pdf->MultiCell($this->posxdiscount - $this->posxunit - 0.8, 4, $unit, 0, 'L');
 					}
 
 					// Discount on line
-					// $pdf->SetXY($this->posxdiscount, $curY);
-					// if ($object->lines[$i]->remise_percent) {
-					// 	$pdf->SetXY($this->posxdiscount - 2, $curY);
-					// 	$remise_percent = pdf_getlineremisepercent($object, $i, $outputlangs, $hidedetails);
-					// 	$pdf->MultiCell($this->postotalht - $this->posxdiscount + 2, 3, $remise_percent, 0, 'R');
-					// }
+					$pdf->SetXY($this->posxdiscount, $curY);
+					if ($object->lines[$i]->remise_percent) {
+						$pdf->SetXY($this->posxdiscount - 2, $curY);
+						$remise_percent = pdf_getlineremisepercent($object, $i, $outputlangs, $hidedetails);
+						$pdf->MultiCell($this->postotalht - $this->posxdiscount + 2, 3, $remise_percent, 0, 'R');
+					}
 
 					// Total HT line
 					$total_excl_tax = pdf_getlinetotalexcltax($object, $i, $outputlangs, $hidedetails);
-					$pdf->SetXY($this->posxdiscount, $curY);
-					$pdf->SetXY($this->posxdiscount - 2, $curY);
-					//$pdf->SetXY($this->postotalht, $curY);
-					//$pdf->MultiCell($this->page_largeur - $this->marge_droite - $this->postotalht, 3, $total_excl_tax, 0, 'R', 0);
-					$pdf->MultiCell($this->postotalht - $this->posxdiscount + 2, 3, $total_excl_tax, 0, 'R');
-
-					/*TOTAL TTC ligne produit*/
-					$total_incl_tax = pdf_getlinetotalincltax($object, $i, $outputlangs, $hidedetails);
-					$pdf->SetXY ($this->postotalht, $curY);
-					$pdf->MultiCell($this->page_largeur - $this->marge_droite - $this->postotalht, 3, $total_incl_tax, 0, 'R', 0);
+					$pdf->SetXY($this->postotalht, $curY);
+					$pdf->MultiCell($this->page_largeur - $this->marge_droite - $this->postotalht, 3, $total_excl_tax, 0, 'R', 0);
 
 					// Collecte des totaux par valeur de tva dans $this->tva["taux"]=total_tva
-					if (!empty($conf->multicurrency->enabled) && $object->multicurrency_tx != 1) {
+					if (isModEnabled("multicurrency") && $object->multicurrency_tx != 1) {
 						$tvaligne = $object->lines[$i]->multicurrency_total_tva;
 					} else {
 						$tvaligne = $object->lines[$i]->total_tva;
@@ -692,7 +652,8 @@ class pdf_azur extends ModelePDFPropales
 					$localtax1_type = $object->lines[$i]->localtax1_type;
 					$localtax2_type = $object->lines[$i]->localtax2_type;
 
-					if ($object->remise_percent) {
+					// TODO remise_percent is an obsolete field for object parent
+					/*if ($object->remise_percent) {
 						$tvaligne -= ($tvaligne * $object->remise_percent) / 100;
 					}
 					if ($object->remise_percent) {
@@ -700,7 +661,7 @@ class pdf_azur extends ModelePDFPropales
 					}
 					if ($object->remise_percent) {
 						$localtax2ligne -= ($localtax2ligne * $object->remise_percent) / 100;
-					}
+					}*/
 
 					$vatrate = (string) $object->lines[$i]->tva_tx;
 
@@ -714,10 +675,18 @@ class pdf_azur extends ModelePDFPropales
 
 					// retrieve global local tax
 					if ($localtax1_type && $localtax1ligne != 0) {
-						$this->localtax1[$localtax1_type][$localtax1_rate] += $localtax1ligne;
+						if (empty($this->localtax1[$localtax1_type][$localtax1_rate])) {
+							$this->localtax1[$localtax1_type][$localtax1_rate] = $localtax1ligne;
+						} else {
+							$this->localtax1[$localtax1_type][$localtax1_rate] += $localtax1ligne;
+						}
 					}
 					if ($localtax2_type && $localtax2ligne != 0) {
-						$this->localtax2[$localtax2_type][$localtax2_rate] += $localtax2ligne;
+						if (empty($this->localtax2[$localtax2_type][$localtax2_rate])) {
+							$this->localtax2[$localtax2_type][$localtax2_rate] = $localtax2ligne;
+						} else {
+							$this->localtax2[$localtax2_type][$localtax2_rate] += $localtax2ligne;
+						}
 					}
 
 					if (($object->lines[$i]->info_bits & 0x01) == 0x01) {
@@ -748,7 +717,7 @@ class pdf_azur extends ModelePDFPropales
 						$pdf->SetLineStyle(array('dash'=>0));
 					}
 
-					$nexY += 2; // Add space between lines 
+					$nexY += 2; // Add space between lines
 
 					// Detect if some page were added automatically and output _tableau for past pages
 					while ($pagenb < $pageposafter) {
@@ -762,7 +731,7 @@ class pdf_azur extends ModelePDFPropales
 						$pagenb++;
 						$pdf->setPage($pagenb);
 						$pdf->setPageOrientation('', 1, 0); // The only function to edit the bottom margin of current page to set it.
-						if (empty($conf->global->MAIN_PDF_DONOTREPEAT_HEAD)) {
+						if (!getDolGlobalInt('MAIN_PDF_DONOTREPEAT_HEAD')) {
 							$this->_pagehead($pdf, $object, 0, $outputlangs);
 						}
 						if (!empty($tplidx)) {
@@ -782,7 +751,7 @@ class pdf_azur extends ModelePDFPropales
 							$pdf->useTemplate($tplidx);
 						}
 						$pagenb++;
-						if (empty($conf->global->MAIN_PDF_DONOTREPEAT_HEAD)) {
+						if (!getDolGlobalInt('MAIN_PDF_DONOTREPEAT_HEAD')) {
 							$this->_pagehead($pdf, $object, 0, $outputlangs);
 						}
 					}
@@ -832,7 +801,7 @@ class pdf_azur extends ModelePDFPropales
 							// Find the desire PDF
 							$filetomerge = new Propalmergepdfproduct($this->db);
 
-							if ($conf->global->MAIN_MULTILANGS) {
+							if (getDolGlobalInt('MAIN_MULTILANGS')) {
 								$filetomerge->fetch_by_product($line->fk_product, $outputlangs->defaultlang);
 							} else {
 								$filetomerge->fetch_by_product($line->fk_product);
@@ -849,23 +818,20 @@ class pdf_azur extends ModelePDFPropales
 								$entity_product_file = $conf->entity;
 							}
 
-							
-
-
 							// If PDF is selected and file is not empty
 							if (count($filetomerge->lines) > 0) {
 								foreach ($filetomerge->lines as $linefile) {
 									if (!empty($linefile->id) && !empty($linefile->file_name)) {
-										if (!empty($conf->global->PRODUCT_USE_OLD_PATH_FOR_PHOTO)) {
-											if (!empty($conf->product->enabled)) {
+										if (getDolGlobalInt('PRODUCT_USE_OLD_PATH_FOR_PHOTO')) {
+											if (isModEnabled("product")) {
 												$filetomerge_dir = $conf->product->multidir_output[$entity_product_file].'/'.get_exdir($product->id, 2, 0, 0, $product, 'product').$product->id."/photos";
-											} elseif (!empty($conf->service->enabled)) {
+											} elseif (isModEnabled("service")) {
 												$filetomerge_dir = $conf->service->multidir_output[$entity_product_file].'/'.get_exdir($product->id, 2, 0, 0, $product, 'product').$product->id."/photos";
 											}
 										} else {
-											if (!empty($conf->product->enabled)) {
+											if (isModEnabled("product")) {
 												$filetomerge_dir = $conf->product->multidir_output[$entity_product_file].'/'.get_exdir(0, 0, 0, 0, $product, 'product');
-											} elseif (!empty($conf->service->enabled)) {
+											} elseif (isModEnabled("service")) {
 												$filetomerge_dir = $conf->service->multidir_output[$entity_product_file].'/'.get_exdir(0, 0, 0, 0, $product, 'product');
 											}
 										}
@@ -907,9 +873,7 @@ class pdf_azur extends ModelePDFPropales
 					$this->errors = $hookmanager->errors;
 				}
 
-				if (!empty($conf->global->MAIN_UMASK)) {
-					@chmod($file, octdec($conf->global->MAIN_UMASK));
-				}
+				dolChmod($file);
 
 				$this->result = array('fullpath'=>$file);
 
@@ -938,6 +902,7 @@ class pdf_azur extends ModelePDFPropales
 	protected function _tableau_versements(&$pdf, $object, $posy, $outputlangs)
 	{
 		// phpcs:enable
+		return 1;
 	}
 
 	// phpcs:disable PEAR.NamingConventions.ValidFunctionName.PublicUnderscore
@@ -949,7 +914,7 @@ class pdf_azur extends ModelePDFPropales
 	 *   @param		Propal		$object			Object to show
 	 *   @param		int			$posy			Y
 	 *   @param		Translate	$outputlangs	Langs object
-	 *   @return	void
+	 *   @return	int
 	 */
 	protected function _tableau_info(&$pdf, $object, $posy, $outputlangs)
 	{
@@ -959,9 +924,11 @@ class pdf_azur extends ModelePDFPropales
 
 		$pdf->SetFont('', '', $default_font_size - 1);
 
+		$diffsizetitle = (empty($conf->global->PDF_DIFFSIZE_TITLE) ? 3 : $conf->global->PDF_DIFFSIZE_TITLE);
+
 		// If France, show VAT mention if not applicable
 		if ($this->emetteur->country_code == 'FR' && empty($mysoc->tva_assuj)) {
-			$pdf->SetFont('', 'B', $default_font_size - 2);
+			$pdf->SetFont('', 'B', $default_font_size - $diffsizetitle);
 			$pdf->SetXY($this->marge_gauche, $posy);
 			$pdf->MultiCell(100, 3, $outputlangs->transnoentities("VATIsNotUsedForInvoice"), 0, 'L', 0);
 
@@ -978,23 +945,23 @@ class pdf_azur extends ModelePDFPropales
 		// Show shipping date
 		if (!empty($object->delivery_date)) {
 			$outputlangs->load("sendings");
-			$pdf->SetFont('', 'B', $default_font_size - 2);
+			$pdf->SetFont('', 'B', $default_font_size - $diffsizetitle);
 			$pdf->SetXY($this->marge_gauche, $posy);
 			$titre = $outputlangs->transnoentities("DateDeliveryPlanned").':';
 			$pdf->MultiCell(80, 4, $titre, 0, 'L');
-			$pdf->SetFont('', '', $default_font_size - 2);
+			$pdf->SetFont('', '', $default_font_size -$diffsizetitle);
 			$pdf->SetXY($posxval, $posy);
 			$dlp = dol_print_date($object->delivery_date, $displaydate, false, $outputlangs, true);
 			$pdf->MultiCell(80, 4, $dlp, 0, 'L');
 
 			$posy = $pdf->GetY() + 1;
 		} elseif ($object->availability_code || $object->availability) {    // Show availability conditions
-			$pdf->SetFont('', 'B', $default_font_size - 2);
+			$pdf->SetFont('', 'B', $default_font_size - $diffsizetitle);
 			$pdf->SetXY($this->marge_gauche, $posy);
 			$titre = $outputlangs->transnoentities("AvailabilityPeriod").':';
 			$pdf->MultiCell(80, 4, $titre, 0, 'L');
 			$pdf->SetTextColor(0, 0, 0);
-			$pdf->SetFont('', '', $default_font_size - 2);
+			$pdf->SetFont('', '', $default_font_size - $diffsizetitle);
 			$pdf->SetXY($posxval, $posy);
 			$lib_availability = $outputlangs->transnoentities("AvailabilityType".$object->availability_code) != ('AvailabilityType'.$object->availability_code) ? $outputlangs->transnoentities("AvailabilityType".$object->availability_code) : $outputlangs->convToOutputCharset($object->availability);
 			$lib_availability = str_replace('\n', "\n", $lib_availability);
@@ -1003,36 +970,44 @@ class pdf_azur extends ModelePDFPropales
 			$posy = $pdf->GetY() + 1;
 		}
 
+		// Show delivery mode
+		if (empty($conf->global->PROPOSAL_PDF_HIDE_DELIVERYMODE) && $object->shipping_method_id > 0) {
+			$outputlangs->load("sendings");
+
+			$shipping_method_id = $object->shipping_method_id;
+			if (!empty($conf->global->SOCIETE_ASK_FOR_SHIPPING_METHOD) && !empty($this->emetteur->shipping_method_id)) {
+				$shipping_method_id = $this->emetteur->shipping_method_id;
+			}
+			$shipping_method_code = dol_getIdFromCode($this->db, $shipping_method_id, 'c_shipment_mode', 'rowid', 'code');
+			$shipping_method_label = dol_getIdFromCode($this->db, $shipping_method_id, 'c_shipment_mode', 'rowid', 'libelle');
+
+			$pdf->SetFont('', 'B', $default_font_size - $diffsizetitle);
+			$pdf->SetXY($this->marge_gauche, $posy);
+			$titre = $outputlangs->transnoentities("SendingMethod").':';
+			$pdf->MultiCell(43, 4, $titre, 0, 'L');
+
+			$pdf->SetFont('', '', $default_font_size - $diffsizetitle);
+			$pdf->SetXY($posxval, $posy);
+			$lib_condition_paiement = ($outputlangs->transnoentities("SendingMethod".strtoupper($shipping_method_code)) != "SendingMethod".strtoupper($shipping_method_code)) ? $outputlangs->trans("SendingMethod".strtoupper($shipping_method_code)) : $shipping_method_label;
+			$lib_condition_paiement = str_replace('\n', "\n", $lib_condition_paiement);
+			$pdf->MultiCell(67, 4, $lib_condition_paiement, 0, 'L');
+
+			$posy = $pdf->GetY() + 1;
+		}
+
 		// Show payments conditions
-		if (empty($conf->global->PROPOSAL_PDF_HIDE_PAYMENTTERM) && ($object->cond_reglement_code || $object->cond_reglement)) {
-			$pdf->SetFont('', 'B', $default_font_size - 2);
+		if (empty($conf->global->PROPOSAL_PDF_HIDE_PAYMENTTERM) && $object->cond_reglement_code) {
+			$pdf->SetFont('', 'B', $default_font_size - $diffsizetitle);
 			$pdf->SetXY($this->marge_gauche, $posy);
 			$titre = $outputlangs->transnoentities("PaymentConditions").':';
 			$pdf->MultiCell(43, 4, $titre, 0, 'L');
 
-			$pdf->SetFont('', '', $default_font_size - 2);
+			$pdf->SetFont('', '', $default_font_size - $diffsizetitle);
 			$pdf->SetXY($posxval, $posy);
 			$lib_condition_paiement = $outputlangs->transnoentities("PaymentCondition".$object->cond_reglement_code) != ('PaymentCondition'.$object->cond_reglement_code) ? $outputlangs->transnoentities("PaymentCondition".$object->cond_reglement_code) : $outputlangs->convToOutputCharset($object->cond_reglement_doc ? $object->cond_reglement_doc : $object->cond_reglement_label);
 			$lib_condition_paiement = str_replace('\n', "\n", $lib_condition_paiement);
 			if ($object->deposit_percent > 0) {
 				$lib_condition_paiement = str_replace('__DEPOSIT_PERCENT__', $object->deposit_percent, $lib_condition_paiement);
-				$lib_condition_paiement = str_replace('__DEPOSIT_PERCENT_LEFT__', 100 - $object->deposit_percent, $lib_condition_paiement);
-				// Add this line to set the deposit_amount in the object
-                //$object->deposit_percent = $deposit_percent;
-
-				$total_ttc = (!empty($conf->multicurrency->enabled) && $object->multicurrency_tx != 1) ? $object->multicurrency_total_ttc : $object->total_ttc;
-				
-				$sum_deposit = round(($object->deposit_percent / 100) *$total_ttc, 2);
-				$sum_deposit_left = $total_ttc - (round(($object->deposit_percent / 100) *$total_ttc, 2));
-				// Add this line to set the deposit_amount in the object
-                $object->deposit_amount = $sum_deposit;
-
-
-				$lib_condition_paiement = str_replace('__DEPOSIT_SUM__', number_format((float)$sum_deposit, 2, '.', ''), $lib_condition_paiement);
-				$lib_condition_paiement = str_replace('__DEPOSIT_SUM_LEFT__', number_format((float)$sum_deposit_left, 2, '.', ''), $lib_condition_paiement);
-				
-
-
 			}
 			$pdf->MultiCell(67, 4, $lib_condition_paiement, 0, 'L');
 
@@ -1040,31 +1015,15 @@ class pdf_azur extends ModelePDFPropales
 		}
 
 		if (empty($conf->global->PROPOSAL_PDF_HIDE_PAYMENTMODE)) {
-			// Check a payment mode is defined
-			/* Not required on a proposal
-			if (empty($object->mode_reglement_code)
-			&& ! $conf->global->FACTURE_CHQ_NUMBER
-			&& ! $conf->global->FACTURE_RIB_NUMBER)
-			{
-				$pdf->SetXY($this->marge_gauche, $posy);
-				$pdf->SetTextColor(200,0,0);
-				$pdf->SetFont('','B', $default_font_size - 2);
-				$pdf->MultiCell(90, 3, $outputlangs->transnoentities("ErrorNoPaiementModeConfigured"),0,'L',0);
-				$pdf->SetTextColor(0,0,0);
-
-				$posy=$pdf->GetY()+1;
-			}
-			*/
-
 			// Show payment mode
 			if ($object->mode_reglement_code
 			&& $object->mode_reglement_code != 'CHQ'
 			&& $object->mode_reglement_code != 'VIR') {
-				$pdf->SetFont('', 'B', $default_font_size - 2);
+				$pdf->SetFont('', 'B', $default_font_size - $diffsizetitle);
 				$pdf->SetXY($this->marge_gauche, $posy);
 				$titre = $outputlangs->transnoentities("PaymentMode").':';
 				$pdf->MultiCell(80, 5, $titre, 0, 'L');
-				$pdf->SetFont('', '', $default_font_size - 2);
+				$pdf->SetFont('', '', $default_font_size - $diffsizetitle);
 				$pdf->SetXY($posxval, $posy);
 				$lib_mode_reg = $outputlangs->transnoentities("PaymentType".$object->mode_reglement_code) != ('PaymentType'.$object->mode_reglement_code) ? $outputlangs->transnoentities("PaymentType".$object->mode_reglement_code) : $outputlangs->convToOutputCharset($object->mode_reglement);
 				$pdf->MultiCell(80, 5, $lib_mode_reg, 0, 'L');
@@ -1075,12 +1034,10 @@ class pdf_azur extends ModelePDFPropales
 			// Show payment mode CHQ
 			if (empty($object->mode_reglement_code) || $object->mode_reglement_code == 'CHQ') {
 				// Si mode reglement non force ou si force a CHQ
-				if (!empty($conf->global->FACTURE_CHQ_NUMBER)) {
-					$diffsizetitle = (empty($conf->global->PDF_DIFFSIZE_TITLE) ? 3 : $conf->global->PDF_DIFFSIZE_TITLE);
-
+				if (getDolGlobalInt('FACTURE_CHQ_NUMBER')) {
 					if ($conf->global->FACTURE_CHQ_NUMBER > 0) {
 						$account = new Account($this->db);
-						$account->fetch($conf->global->FACTURE_CHQ_NUMBER);
+						$account->fetch(getDolGlobalInt('FACTURE_CHQ_NUMBER'));
 
 						$pdf->SetXY($this->marge_gauche, $posy);
 						$pdf->SetFont('', 'B', $default_font_size - $diffsizetitle);
@@ -1112,7 +1069,7 @@ class pdf_azur extends ModelePDFPropales
 
 			// If payment mode not forced or forced to VIR, show payment with BAN
 			if (empty($object->mode_reglement_code) || $object->mode_reglement_code == 'VIR') {
-				if (!empty($object->fk_account) || !empty($object->fk_bank) || !empty($conf->global->FACTURE_RIB_NUMBER)) {
+				if (!empty($object->fk_account) || !empty($object->fk_bank) || getDolGlobalInt('FACTURE_RIB_NUMBER')) {
 					$bankid = (empty($object->fk_account) ? $conf->global->FACTURE_RIB_NUMBER : $object->fk_account);
 					if (!empty($object->fk_bank)) {
 						$bankid = $object->fk_bank; // For backward compatibility when object->fk_account is forced with object->fk_bank
@@ -1167,56 +1124,19 @@ class pdf_azur extends ModelePDFPropales
 		$useborder = 0;
 		$index = 0;
 
-		// $condition = 'CONDITION DE PRODUIT:		
-		// 	- Prix valable jusqu\'au '.dol_print_date($object->fin_validite, 'day', false, $outputlangs, true).'		
-	   	// 	- Délais de livraison: 1-2 semaines 		
-	   	// 	- Paiement: Virement, Cheque';
-
-		// Condition
-		// $pdf->SetFillColor(255, 255, 255);
-		// $pdf->SetXY(10, $tab2_top + 0);
-		// $pdf->MultiCell(200, $tab2_hl, $condition, 0, 'L', 1);
-
-
-
-		// Récupérez les valeurs de remise depuis la session
-        session_start();
-        $absolute_discount = isset($_SESSION['absolute_discount']) ? $_SESSION['absolute_discount'] : 0;
-        $fixedDiscount = isset($_SESSION['fixedDiscount']) ? $_SESSION['fixedDiscount'] : 0;
-        session_write_close(); 
-        // fermer la session
-
-        // Récupérez le montant total de la remise
-        $total_remise = $object->total_remise;
-        
-
-
-		// ---------------------Ajout de la remise
-        $index++;
-        $pdf->SetFillColor(255, 255, 255);
-        $pdf->SetXY($col1x, $tab2_top + $tab2_hl * $index);
-        $pdf->MultiCell($col2x - $col1x, $tab2_hl, $outputlangs->transnoentities("Remise"), 0, 'L', 1);
-
-        $pdf->SetXY($col2x, $tab2_top + $tab2_hl * $index);
-        $pdf->MultiCell($largcol2, $tab2_hl, price($this->total_discount_amount, 0, $outputlangs), 0, 'R', 1);
-
-        // Total HT
-        /*---------------------------------------------------------*/
-                //--------------------------------------------------------
-
 		// Total HT
 		$pdf->SetFillColor(255, 255, 255);
-		$pdf->SetXY($col1x, $tab2_top + 0);
+		$pdf->SetXY($col1x, $tab2_top);
 		$pdf->MultiCell($col2x - $col1x, $tab2_hl, $outputlangs->transnoentities("TotalHT"), 0, 'L', 1);
 
-		$total_ht = ((!empty($conf->multicurrency->enabled) && isset($object->multicurrency_tx) && $object->multicurrency_tx != 1) ? $object->multicurrency_total_ht : $object->total_ht);
-		$pdf->SetXY($col2x, $tab2_top + 0);
+		$total_ht = ((isModEnabled("multicurrency") && isset($object->multicurrency_tx) && $object->multicurrency_tx != 1) ? $object->multicurrency_total_ht : $object->total_ht);
+		$pdf->SetXY($col2x, $tab2_top);
 		$pdf->MultiCell($largcol2, $tab2_hl, price($total_ht + (!empty($object->remise) ? $object->remise : 0), 0, $outputlangs), 0, 'R', 1);
 
 		// Show VAT by rates and total
 		$pdf->SetFillColor(248, 248, 248);
 
-		$total_ttc = (!empty($conf->multicurrency->enabled) && $object->multicurrency_tx != 1) ? $object->multicurrency_total_ttc : $object->total_ttc;
+		$total_ttc = (isModEnabled("multicurrency") && $object->multicurrency_tx != 1) ? $object->multicurrency_total_ttc : $object->total_ttc;
 
 		$this->atleastoneratenotnull = 0;
 		if (empty($conf->global->MAIN_GENERATE_DOCUMENTS_WITHOUT_VAT)) {
@@ -1225,7 +1145,7 @@ class pdf_azur extends ModelePDFPropales
 				// Nothing to do
 			} else {
 				//Local tax 1 before VAT
-				//if (! empty($conf->global->FACTURE_LOCAL_TAX1_OPTION) && $conf->global->FACTURE_LOCAL_TAX1_OPTION=='localtax1on')
+				//if (!empty($conf->global->FACTURE_LOCAL_TAX1_OPTION) && $conf->global->FACTURE_LOCAL_TAX1_OPTION=='localtax1on')
 				//{
 				foreach ($this->localtax1 as $localtax_type => $localtax_rate) {
 					if (in_array((string) $localtax_type, array('1', '3', '5'))) {
@@ -1255,7 +1175,7 @@ class pdf_azur extends ModelePDFPropales
 				}
 				//}
 				//Local tax 2 before VAT
-				//if (! empty($conf->global->FACTURE_LOCAL_TAX2_OPTION) && $conf->global->FACTURE_LOCAL_TAX2_OPTION=='localtax2on')
+				//if (!empty($conf->global->FACTURE_LOCAL_TAX2_OPTION) && $conf->global->FACTURE_LOCAL_TAX2_OPTION=='localtax2on')
 				//{
 				foreach ($this->localtax2 as $localtax_type => $localtax_rate) {
 					if (in_array((string) $localtax_type, array('1', '3', '5'))) {
@@ -1317,7 +1237,7 @@ class pdf_azur extends ModelePDFPropales
 				}
 
 				//Local tax 1 after VAT
-				//if (! empty($conf->global->FACTURE_LOCAL_TAX1_OPTION) && $conf->global->FACTURE_LOCAL_TAX1_OPTION=='localtax1on')
+				//if (!empty($conf->global->FACTURE_LOCAL_TAX1_OPTION) && $conf->global->FACTURE_LOCAL_TAX1_OPTION=='localtax1on')
 				//{
 				foreach ($this->localtax1 as $localtax_type => $localtax_rate) {
 					if (in_array((string) $localtax_type, array('2', '4', '6'))) {
@@ -1347,7 +1267,7 @@ class pdf_azur extends ModelePDFPropales
 				}
 				//}
 				//Local tax 2 after VAT
-				//if (! empty($conf->global->FACTURE_LOCAL_TAX2_OPTION) && $conf->global->FACTURE_LOCAL_TAX2_OPTION=='localtax2on')
+				//if (!empty($conf->global->FACTURE_LOCAL_TAX2_OPTION) && $conf->global->FACTURE_LOCAL_TAX2_OPTION=='localtax2on')
 				//{
 				foreach ($this->localtax2 as $localtax_type => $localtax_rate) {
 					if (in_array((string) $localtax_type, array('2', '4', '6'))) {
@@ -1395,7 +1315,7 @@ class pdf_azur extends ModelePDFPropales
 
 		/*
 		$resteapayer = $object->total_ttc - $deja_regle;
-		if (! empty($object->paye)) $resteapayer=0;
+		if (!empty($object->paye)) $resteapayer=0;
 		*/
 
 		if ($deja_regle > 0) {
@@ -1483,31 +1403,23 @@ class pdf_azur extends ModelePDFPropales
 		}
 
 		$pdf->SetDrawColor(128, 128, 128);
-		$pdf->SetFont('', '', $default_font_size - 4);
+		$pdf->SetFont('', '', $default_font_size - 1);
 
 		// Output Rect
 		$this->printRect($pdf, $this->marge_gauche, $tab_top, $this->page_largeur - $this->marge_gauche - $this->marge_droite, $tab_height, $hidetop, $hidebottom); // Rect takes a length in 3rd parameter and 4th parameter
 
-		$pdf->line($this->posxdesc -1 + 10, $tab_top, $this->posxdesc - 1 + 10, $tab_top + $tab_height);
 		if (empty($hidetop)) {
+			$pdf->line($this->marge_gauche, $tab_top + 5, $this->page_largeur - $this->marge_droite, $tab_top + 5); // line takes a position y in 2nd parameter and 4th parameter
 
 			$pdf->SetXY($this->posxdesc - 1, $tab_top + 1);
-			$pdf->MultiCell($this->posxdesc, 2, $outputlangs->transnoentities("RowIndex"), '', 'C');
-		}
-
-		if (empty($hidetop)) {
-			//$pdf->line($this->marge_gauche, $tab_top + 5, $this->page_largeur - $this->marge_droite, $tab_top + 5); // line takes a position y in 2nd parameter and 4th parameter
-
-			$pdf->SetXY($this->posxdesc - 1, $tab_top + 1);
-			$pdf->MultiCell(100, 2, $outputlangs->transnoentities("Designation"), '', 'C');
+			$pdf->MultiCell(108, 2, $outputlangs->transnoentities("Designation"), '', 'L');
 		}
 
 		if (!empty($conf->global->MAIN_GENERATE_PROPOSALS_WITH_PICTURE)) {
 			$pdf->line($this->posxpicture - 1, $tab_top, $this->posxpicture - 1, $tab_top + $tab_height);
-			$pdf->MultiCell($this->posxup - $this->posxtva + 3, 2, $outputlangs->transnoentities("VAT"), '', 'C');
 			if (empty($hidetop)) {
-				$pdf->SetXY($this->posxpicture-1, $tab_top+1);
-				$pdf->MultiCell($this->posxtva-$this->posxpicture-1,2, $outputlangs->transnoentities("Photo"),'','C');
+				//$pdf->SetXY($this->posxpicture-1, $tab_top+1);
+				//$pdf->MultiCell($this->posxtva-$this->posxpicture-1,2, $outputlangs->transnoentities("Photo"),'','C');
 			}
 		}
 
@@ -1520,21 +1432,19 @@ class pdf_azur extends ModelePDFPropales
 			}
 		}
 
-		// Quantity
 		$pdf->line($this->posxup - 1, $tab_top, $this->posxup - 1, $tab_top + $tab_height);
 		if (empty($hidetop)) {
 			$pdf->SetXY($this->posxup - 1, $tab_top + 1);
-			$pdf->MultiCell($this->posxqty - $this->posxup - 1, 2, $outputlangs->transnoentities("Qty"), '', 'C');
+			$pdf->MultiCell($this->posxqty - $this->posxup - 1, 2, $outputlangs->transnoentities("PriceUHT"), '', 'C');
 		}
 
-		// Unit price before discount
 		$pdf->line($this->posxqty - 1, $tab_top, $this->posxqty - 1, $tab_top + $tab_height);
 		if (empty($hidetop)) {
 			$pdf->SetXY($this->posxqty - 1, $tab_top + 1);
-			$pdf->MultiCell($this->posxunit - $this->posxqty - 1, 2, $outputlangs->transnoentities("PriceUHT"), '', 'C');
+			$pdf->MultiCell($this->posxunit - $this->posxqty - 1, 2, $outputlangs->transnoentities("Qty"), '', 'C');
 		}
 
-		if (!empty($conf->global->PRODUCT_USE_UNITS)) {
+		if (getDolGlobalInt('PRODUCT_USE_UNITS')) {
 			$pdf->line($this->posxunit - 1, $tab_top, $this->posxunit - 1, $tab_top + $tab_height);
 			if (empty($hidetop)) {
 				$pdf->SetXY($this->posxunit - 1, $tab_top + 1);
@@ -1552,7 +1462,7 @@ class pdf_azur extends ModelePDFPropales
 		if (empty($hidetop)) {
 			if ($this->atleastonediscount) {
 				$pdf->SetXY($this->posxdiscount - 1, $tab_top + 1);
-				$pdf->MultiCell($this->postotalht - $this->posxdiscount + 1, 2, $outputlangs->transnoentities("TotalHT"), '', 'C');
+				$pdf->MultiCell($this->postotalht - $this->posxdiscount + 1, 2, $outputlangs->transnoentities("ReductionShort"), '', 'C');
 			}
 		}
 		if ($this->atleastonediscount) {
@@ -1560,7 +1470,7 @@ class pdf_azur extends ModelePDFPropales
 		}
 		if (empty($hidetop)) {
 			$pdf->SetXY($this->postotalht - 1, $tab_top + 1);
-			$pdf->MultiCell(20, 2, $outputlangs->transnoentities("TotalTTC"), '', 'C');
+			$pdf->MultiCell(30, 2, $outputlangs->transnoentities("TotalHTShort"), '', 'C');
 		}
 	}
 
@@ -1573,11 +1483,11 @@ class pdf_azur extends ModelePDFPropales
 	 *  @param  int	    	$showaddress    0=no, 1=yes
 	 *  @param  Translate	$outputlangs	Object lang for output
 	 *  @param  Translate	$outputlangsbis	Object lang for output bis
-	 *  @return	void
+	 *  @return	int|float
 	 */
 	protected function _pagehead(&$pdf, $object, $showaddress, $outputlangs, $outputlangsbis = null)
 	{
-		global $conf, $langs, $user;
+		global $conf, $langs;
 
 		$ltrdirection = 'L';
 		if ($outputlangs->trans("DIRECTION") == 'rtl') $ltrdirection = 'R';
@@ -1592,25 +1502,27 @@ class pdf_azur extends ModelePDFPropales
 		$pdf->SetTextColor(0, 0, 60);
 		$pdf->SetFont('', 'B', $default_font_size + 3);
 
+		$w = 100;
+
 		$posy = $this->marge_haute;
-		$posx = $this->page_largeur - $this->marge_droite - 100;
+		$posx = $this->page_largeur - $this->marge_droite - $w;
 
 		$pdf->SetXY($this->marge_gauche, $posy);
 
 		// Logo
-		if (empty($conf->global->PDF_DISABLE_MYCOMPANY_LOGO)) {
+		if (!getDolGlobalInt('PDF_DISABLE_MYCOMPANY_LOGO')) {
 			if ($this->emetteur->logo) {
 				$logodir = $conf->mycompany->dir_output;
 				if (!empty($conf->mycompany->multidir_output[$object->entity])) {
 					$logodir = $conf->mycompany->multidir_output[$object->entity];
 				}
-				if (empty($conf->global->MAIN_PDF_USE_LARGE_LOGO)) {
+				if (!getDolGlobalInt('MAIN_PDF_USE_LARGE_LOGO')) {
 					$logo = $logodir.'/logos/thumbs/'.$this->emetteur->logo_small;
 				} else {
 					$logo = $logodir.'/logos/'.$this->emetteur->logo;
 				}
 				if (is_readable($logo)) {
-					$height = 30;
+					$height = pdf_getHeightForLogo($logo);
 					$pdf->Image($logo, $this->marge_gauche, $posy, 0, $height); // width=0 (auto)
 				} else {
 					$pdf->SetTextColor(200, 0, 0);
@@ -1626,17 +1538,14 @@ class pdf_azur extends ModelePDFPropales
 
 		$pdf->SetFont('', 'B', $default_font_size + 3);
 		$pdf->SetXY($posx, $posy);
-		$pdf->SetTextColor(68, 116, 206);
+		$pdf->SetTextColor(0, 0, 60);
 		$title = $outputlangs->transnoentities("PdfCommercialProposalTitle");
+		$title .= ' '.$outputlangs->convToOutputCharset($object->ref);
 		if ($object->statut == $object::STATUS_DRAFT) {
 			$pdf->SetTextColor(128, 0, 0);
 			$title .= ' - '.$outputlangs->transnoentities("NotValidated");
 		}
 		$pdf->MultiCell(100, 4, $title, '', 'R');
-		$posy += 4;
-		$pdf->SetXY($posx, $posy);
-		$pdf->MultiCell(100, 4, 'No: '.$outputlangs->convToOutputCharset($object->ref), '', 'R');
-
 
 		$pdf->SetFont('', 'B', $default_font_size);
 
@@ -1684,7 +1593,8 @@ class pdf_azur extends ModelePDFPropales
 			$displaydate = "day";
 		}
 
-		$posy += 4;
+		//$posy += 4;
+		$posy = $pdf->getY();
 		$pdf->SetXY($posx, $posy);
 		$pdf->SetTextColor(0, 0, 60);
 		$pdf->MultiCell(100, 3, $outputlangs->transnoentities("DatePropal")." : ".dol_print_date($object->date, $displaydate, false, $outputlangs, true), '', 'R');
@@ -1727,14 +1637,20 @@ class pdf_azur extends ModelePDFPropales
 		if ($showaddress) {
 			// Sender properties
 			$carac_emetteur = '';
-			// Add internal contact of proposal if defined
+			// Add internal contact of object if defined
 			$arrayidcontact = $object->getIdContact('internal', 'SALESREPFOLL');
 			if (count($arrayidcontact) > 0) {
 				$object->fetch_user($arrayidcontact[0]);
 				$labelbeforecontactname = ($outputlangs->transnoentities("FromContactName") != 'FromContactName' ? $outputlangs->transnoentities("FromContactName") : $outputlangs->transnoentities("Name"));
-				$carac_emetteur .= ($carac_emetteur ? "\n" : '').$labelbeforecontactname." ".$outputlangs->convToOutputCharset($object->user->getFullName($outputlangs))."\n";
+				$carac_emetteur .= ($carac_emetteur ? "\n" : '').$labelbeforecontactname." ".$outputlangs->convToOutputCharset($object->user->getFullName($outputlangs));
+				$carac_emetteur .= (getDolGlobalInt('PDF_SHOW_PHONE_AFTER_USER_CONTACT') || getDolGlobalInt('PDF_SHOW_EMAIL_AFTER_USER_CONTACT')) ? ' (' : '';
+				$carac_emetteur .= (getDolGlobalInt('PDF_SHOW_PHONE_AFTER_USER_CONTACT') && !empty($object->user->office_phone)) ? $object->user->office_phone : '';
+				$carac_emetteur .= (getDolGlobalInt('PDF_SHOW_PHONE_AFTER_USER_CONTACT') && getDolGlobalInt('PDF_SHOW_EMAIL_AFTER_USER_CONTACT')) ? ', ' : '';
+				$carac_emetteur .= (getDolGlobalInt('PDF_SHOW_EMAIL_AFTER_USER_CONTACT') && !empty($object->user->email)) ? $object->user->email : '';
+				$carac_emetteur .= (getDolGlobalInt('PDF_SHOW_PHONE_AFTER_USER_CONTACT') || getDolGlobalInt('PDF_SHOW_EMAIL_AFTER_USER_CONTACT')) ? ')' : '';
+				$carac_emetteur .= "\n";
 			}
-			$this->emetteur->user = $user;
+
 			$carac_emetteur .= pdf_build_address($outputlangs, $this->emetteur, $object->thirdparty, '', 0, 'source', $object);
 
 			// Show sender
@@ -1757,7 +1673,7 @@ class pdf_azur extends ModelePDFPropales
 				$pdf->SetTextColor(0, 0, 60);
 			}
 
-			// Show sender name
+			// Show company name
 			if (empty($conf->global->MAIN_PDF_HIDE_SENDER_NAME)) {
 				$pdf->SetXY($posx + 2, $posy + 3);
 				$pdf->SetFont('', 'B', $default_font_size);
@@ -1840,8 +1756,7 @@ class pdf_azur extends ModelePDFPropales
 	 */
 	protected function _pagefoot(&$pdf, $object, $outputlangs, $hidefreetext = 0)
 	{
-		global $conf;
-		$showdetails = empty($conf->global->MAIN_GENERATE_DOCUMENTS_SHOW_FOOT_DETAILS) ? 0 : $conf->global->MAIN_GENERATE_DOCUMENTS_SHOW_FOOT_DETAILS;
+		$showdetails = getDolGlobalInt('MAIN_GENERATE_DOCUMENTS_SHOW_FOOT_DETAILS', 0);
 		return pdf_pagefoot($pdf, $outputlangs, 'PROPOSAL_FREE_TEXT', $this->emetteur, $this->marge_basse, $this->marge_gauche, $this->page_hauteur, $object, $showdetails, $hidefreetext, $this->page_largeur, $this->watermark);
 	}
 
@@ -1864,34 +1779,18 @@ class pdf_azur extends ModelePDFPropales
 		$tab_top = $posy + 4;
 		$tab_hl = 4;
 
-		$posx = 10;
-		$largcol = ($this->page_largeur - $this->marge_droite - 120);
-		$useborder = 0;
-		$index = 0;
-		// Total HT
-		$pdf->SetFillColor(255, 255, 255);
-		$pdf->SetXY($posx, $tab_top + 0);
-		$pdf->SetFont('', '', $default_font_size - 2);
-		$pdf->MultiCell($largcol, $tab_hl, $outputlangs->transnoentities("CompanySignature"), 0, 'L', 1);
-
-		//$pdf->SetXY($posx, $tab_top + $tab_hl);
-		//$pdf->MultiCell($largcol, $tab_hl * 3, '', 1, 'R');
-
 		$posx = 120;
 		$largcol = ($this->page_largeur - $this->marge_droite - $posx);
 		$useborder = 0;
 		$index = 0;
 		// Total HT
 		$pdf->SetFillColor(255, 255, 255);
-		$pdf->SetXY($posx, $tab_top + 0);
+		$pdf->SetXY($posx, $tab_top);
 		$pdf->SetFont('', '', $default_font_size - 2);
-		$pdf->MultiCell($largcol, $tab_hl, $outputlangs->transnoentities("ClientSignature"), 0, 'L', 1);
+		$pdf->MultiCell($largcol, $tab_hl, $outputlangs->transnoentities("ProposalCustomerSignature"), 0, 'L', 1);
+
 		$pdf->SetXY($posx, $tab_top + $tab_hl);
-		$pdf->MultiCell($largcol, $tab_hl, '"Bon pour accord"', 0, 'L', 1);
-
-
-		//$pdf->SetXY($posx, $tab_top + $tab_hl);
-		//$pdf->MultiCell($largcol, $tab_hl * 3, '', 1, 'R');
+		$pdf->MultiCell($largcol, $tab_hl * 3, '', 1, 'R');
 		if (!empty($conf->global->MAIN_PDF_PROPAL_USE_ELECTRONIC_SIGNING)) {
 			$pdf->addEmptySignatureAppearance($posx, $tab_top + $tab_hl, $largcol, $tab_hl * 3);
 		}

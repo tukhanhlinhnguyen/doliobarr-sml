@@ -64,7 +64,7 @@ if (!isModEnabled('accounting')) {
 if ($user->socid > 0) {
 	accessforbidden();
 }
-if (empty($user->rights->accounting->mouvements->lire)) {
+if (!$user->hasRight('accounting', 'mouvements', 'lire')) {
 	accessforbidden();
 }
 
@@ -380,7 +380,7 @@ if ($action == 'writebookkeeping') {
 		if (price2num($totaldebit, 'MT') != price2num($totalcredit, 'MT')) {
 			$error++;
 			$errorforline++;
-			setEventMessages('Try to insert a non balanced transaction in book for '.$val["ref"].'. Canceled. Surely a bug.', null, 'errors');
+			setEventMessages('We tried to insert a non balanced transaction in book for '.$val["ref"].'. Canceled. Surely a bug.', null, 'errors');
 		}
 
 		if (!$errorforline) {
@@ -445,8 +445,8 @@ if ($action == 'exportcsv') {		// ISO and not UTF8 !
 	print '"'.$langs->transnoentitiesnoconv("Piece").'"'.$sep;
 	print '"'.$langs->transnoentitiesnoconv("AccountAccounting").'"'.$sep;
 	print '"'.$langs->transnoentitiesnoconv("LabelOperation").'"'.$sep;
-	print '"'.$langs->transnoentitiesnoconv("Debit").'"'.$sep;
-	print '"'.$langs->transnoentitiesnoconv("Credit").'"'.$sep;
+	print '"'.$langs->transnoentitiesnoconv("AccountingDebit").'"'.$sep;
+	print '"'.$langs->transnoentitiesnoconv("AccountingCredit").'"'.$sep;
 	print "\n";
 
 	foreach ($taber as $key => $val) {
@@ -469,6 +469,7 @@ if ($action == 'exportcsv') {		// ISO and not UTF8 !
 				print "\n";
 			}
 		}
+
 		// VAT
 		foreach ($tabtva[$key] as $k => $mt) {
 			if ($mt) {
@@ -496,14 +497,16 @@ if ($action == 'exportcsv') {		// ISO and not UTF8 !
 }
 
 if (empty($action) || $action == 'view') {
-	llxHeader('', $langs->trans("ExpenseReportsJournal"));
+	$title = $langs->trans("GenerationOfAccountingEntries").' - '.$accountingjournalstatic->getNomUrl(0, 2, 1, '', 1);
 
-	$nom = $langs->trans("ExpenseReportsJournal").' | '.$accountingjournalstatic->getNomUrl(0, 1, 1, '', 1);
+	llxHeader('', dol_string_nohtmltag($title));
+
+	$nom = $title;
 	$nomlink = '';
 	$periodlink = '';
 	$exportlink = '';
 	$builddate = dol_now();
-	$description .= $langs->trans("DescJournalOnlyBindedVisible").'<br>';
+	$description = $langs->trans("DescJournalOnlyBindedVisible").'<br>';
 
 	$listofchoices = array('notyet'=>$langs->trans("NotYetInGeneralLedger"), 'already'=>$langs->trans("AlreadyInGeneralLedger"));
 	$period = $form->selectDate($date_start ? $date_start : -1, 'date_start', 0, 0, 0, '', 1, 0).' - '.$form->selectDate($date_end ? $date_end : -1, 'date_end', 0, 0, 0, '', 1, 0);
@@ -567,8 +570,8 @@ if (empty($action) || $action == 'view') {
 	print "<td>".$langs->trans("AccountAccounting")."</td>";
 	print "<td>".$langs->trans("SubledgerAccount")."</td>";
 	print "<td>".$langs->trans("LabelOperation")."</td>";
-	print '<td class="right">'.$langs->trans("Debit")."</td>";
-	print '<td class="right">'.$langs->trans("Credit")."</td>";
+	print '<td class="right">'.$langs->trans("AccountingDebit")."</td>";
+	print '<td class="right">'.$langs->trans("AccountingCredit")."</td>";
 	print "</tr>\n";
 
 	$r = '';
@@ -613,6 +616,8 @@ if (empty($action) || $action == 'view') {
 				print '<td class="right nowraponall amount">'.($mt >= 0 ? price($mt) : '')."</td>";
 				print '<td class="right nowraponall amount">'.($mt < 0 ? price(-$mt) : '')."</td>";
 				print "</tr>";
+
+				$i++;
 			}
 		}
 
@@ -647,6 +652,8 @@ if (empty($action) || $action == 'view') {
 			print '<td class="right nowraponall amount">'.($mt < 0 ? price(-$mt) : '')."</td>";
 			print '<td class="right nowraponall amount">'.($mt >= 0 ? price($mt) : '')."</td>";
 			print "</tr>";
+
+			$i++;
 		}
 
 		// VAT
@@ -683,9 +690,16 @@ if (empty($action) || $action == 'view') {
 					print '<td class="right nowraponall amount">'.($mt >= 0 ? price($mt) : '')."</td>";
 					print '<td class="right nowraponall amount">'.($mt < 0 ? price(-$mt) : '')."</td>";
 					print "</tr>";
+
+					$i++;
 				}
 			}
 		}
+	}
+
+	if (!$i) {
+		$colspan = 7;
+		print '<tr class="oddeven"><td colspan="'.$colspan.'"><span class="opacitymedium">'.$langs->trans("NoRecordFound").'</span></td></tr>';
 	}
 
 	print "</table>";
