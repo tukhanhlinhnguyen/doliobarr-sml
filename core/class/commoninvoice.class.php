@@ -615,6 +615,9 @@ abstract class CommonInvoice extends CommonObject
 			if ($status == 0) {
 				$labelStatus = $langs->transnoentitiesnoconv('BillStatusDraft');
 				$labelStatusShort = $langs->transnoentitiesnoconv('Bill'.$prefix.'StatusDraft');
+			} elseif ($status == 4) {
+				$labelStatus = $langs->transnoentitiesnoconv('BillStatusPrelevement');
+				$labelStatusShort = $langs->transnoentitiesnoconv('Bill'.$prefix.'StatusPrelevement');
 			} elseif (($status == 3 || $status == 2) && $alreadypaid <= 0) {
 				if ($status == 3) {
 					$labelStatus = $langs->transnoentitiesnoconv('BillStatusCanceled');
@@ -639,8 +642,11 @@ abstract class CommonInvoice extends CommonObject
 			}
 		} else {
 			$statusType = 'status6';
-
-			if ($type == self::TYPE_CREDIT_NOTE) {
+		
+			if ($status == 4) {
+				$labelStatus = $langs->transnoentitiesnoconv('BillStatusPrelevement');
+				$labelStatusShort = $langs->transnoentitiesnoconv('Bill'.$prefix.'StatusPrelevement');
+			} elseif ($type == self::TYPE_CREDIT_NOTE) {
 				$labelStatus = $langs->transnoentitiesnoconv('BillStatusPaidBackOrConverted'); // credit note
 				$labelStatusShort = $langs->transnoentitiesnoconv('Bill'.$prefix.'StatusPaidBackOrConverted'); // credit note
 			} elseif ($type == self::TYPE_DEPOSIT) {
