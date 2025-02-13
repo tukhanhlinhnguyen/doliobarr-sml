@@ -111,7 +111,7 @@ class ActionsInvoiceStatus
         if (get_class($object) == 'Facture' && isset($user->rights->invoicestatus->modifierstatut))
         {
             $token = newToken();
-            $selected = array("", "", "", "", "");
+            $selected = array("", "", "", "", "", "", "");
             $selected[$object->status] = "selected";
             print '<form method="post" action="'.dol_buildpath('/compta/facture/card.php?facid=' . $object->id . '&action=modif_status',1).'" id="status_change_form">
                 <input type="hidden" name="token" value="'.$token.'">
@@ -123,6 +123,8 @@ class ActionsInvoiceStatus
                     <option ' . $selected[2] .' value="2">Payée</option>
                     <option ' . $selected[3] .' value="3">Abandonnée</option>
                     <option ' . $selected[4] .' value="4">En cours de prélèvement</option>
+                    <option ' . $selected[5] .' value="5">Factor : impayé</option>
+                    <option ' . $selected[6] .' value="6">Factor : payé</option>
                 </select>
                 <input class="button" type="submit" value="Changer l\'état" id="submit_button">
             </form>';

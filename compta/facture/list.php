@@ -781,7 +781,13 @@ if ($search_status != '-1' && $search_status != '') {
 			$sql .= " AND f.fk_statut = 3"; // abandonned
 		}
 		if ($search_status == '4') {
-			$sql .= " AND f.fk_statut = 4"; // abandonned
+			$sql .= " AND f.fk_statut = 4"; // prelevement
+		}
+		if ($search_status == '5') {
+			$sql .= " AND f.fk_statut = 5"; // factor impaye
+		}
+		if ($search_status == '6') {
+			$sql .= " AND f.fk_statut = 6"; // factor paye
 		}
 	} else {
 		$sql .= " AND f.fk_statut IN (".$db->sanitize($db->escape($search_status)).")"; // When search_status is '1,2' for example
@@ -1623,7 +1629,7 @@ if ($resql) {
 	// Status
 	if (!empty($arrayfields['f.fk_statut']['checked'])) {
 		print '<td class="liste_titre right parentonrightofpage">';
-		$liststatus = array('0'=>$langs->trans("BillShortStatusDraft"), '0,1'=>$langs->trans("BillShortStatusDraft").'+'.$langs->trans("BillShortStatusNotPaid"), '1'=>$langs->trans("BillShortStatusNotPaid"), '1,2'=>$langs->trans("BillShortStatusNotPaid").'+'.$langs->trans("BillShortStatusPaid"), '2'=>$langs->trans("BillShortStatusPaid"), '3'=>$langs->trans("BillShortStatusCanceled"), '4'=>$langs->trans("BillShortStatusPrelevement"));
+		$liststatus = array('0'=>$langs->trans("BillShortStatusDraft"), '0,1'=>$langs->trans("BillShortStatusDraft").'+'.$langs->trans("BillShortStatusNotPaid"), '1'=>$langs->trans("BillShortStatusNotPaid"), '1,2'=>$langs->trans("BillShortStatusNotPaid").'+'.$langs->trans("BillShortStatusPaid"), '2'=>$langs->trans("BillShortStatusPaid"), '3'=>$langs->trans("BillShortStatusCanceled"), '4'=>$langs->trans("BillShortStatusPrelevement"), '5'=>$langs->trans("BillShortStatusFactorNotPaid"), '6'=>$langs->trans("BillShortStatusFactorPaid"));
 		print $form->selectarray('search_status', $liststatus, $search_status, 1, 0, 0, '', 0, 0, 0, '', 'search_status width100 onrightofpage', 1);
 		print '</td>';
 	}

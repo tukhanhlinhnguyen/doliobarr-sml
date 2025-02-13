@@ -101,7 +101,9 @@ abstract class CommonInvoice extends CommonObject
 	 * - CLOSECODE_REPLACED
 	 */
 	const STATUS_ABANDONED = 3;
-
+	const STATUS_PRELEVEMENT = 4;
+	const STATUS_FACTOR_NOT_PAID = 5;
+	const STATUS_FACTOR_PAID = 6;
 
 	public $totalpaid;			// duplicate with sumpayed
 	public $totaldeposits;		// duplicate with sumdeposit
@@ -615,9 +617,15 @@ abstract class CommonInvoice extends CommonObject
 			if ($status == 0) {
 				$labelStatus = $langs->transnoentitiesnoconv('BillStatusDraft');
 				$labelStatusShort = $langs->transnoentitiesnoconv('Bill'.$prefix.'StatusDraft');
-			} elseif ($status == 4) {
+			} elseif ($status == self::STATUS_PRELEVEMENT) {
 				$labelStatus = $langs->transnoentitiesnoconv('BillStatusPrelevement');
 				$labelStatusShort = $langs->transnoentitiesnoconv('Bill'.$prefix.'StatusPrelevement');
+			} elseif ($status == self::STATUS_FACTOR_NOT_PAID) {
+				$labelStatus = $langs->transnoentitiesnoconv('BillStatusFactorNotPaid');
+				$labelStatusShort = $langs->transnoentitiesnoconv('Bill'.$prefix.'StatusFactorNotPaid');
+			} elseif ($status == self::STATUS_FACTOR_PAID) {
+				$labelStatus = $langs->transnoentitiesnoconv('BillStatusFactorPaid');
+				$labelStatusShort = $langs->transnoentitiesnoconv('Bill'.$prefix.'StatusFactorPaid');
 			} elseif (($status == 3 || $status == 2) && $alreadypaid <= 0) {
 				if ($status == 3) {
 					$labelStatus = $langs->transnoentitiesnoconv('BillStatusCanceled');
@@ -646,6 +654,12 @@ abstract class CommonInvoice extends CommonObject
 			if ($status == 4) {
 				$labelStatus = $langs->transnoentitiesnoconv('BillStatusPrelevement');
 				$labelStatusShort = $langs->transnoentitiesnoconv('Bill'.$prefix.'StatusPrelevement');
+			} elseif ($status == self::STATUS_FACTOR_NOT_PAID) {
+				$labelStatus = $langs->transnoentitiesnoconv('BillStatusFactorNotPaid');
+				$labelStatusShort = $langs->transnoentitiesnoconv('Bill'.$prefix.'StatusFactorNotPaid');
+			} elseif ($status == self::STATUS_FACTOR_PAID) {
+				$labelStatus = $langs->transnoentitiesnoconv('BillStatusFactorPaid');
+				$labelStatusShort = $langs->transnoentitiesnoconv('Bill'.$prefix.'StatusFactorPaid');
 			} elseif ($type == self::TYPE_CREDIT_NOTE) {
 				$labelStatus = $langs->transnoentitiesnoconv('BillStatusPaidBackOrConverted'); // credit note
 				$labelStatusShort = $langs->transnoentitiesnoconv('Bill'.$prefix.'StatusPaidBackOrConverted'); // credit note
