@@ -104,6 +104,7 @@ class ActionsInvoiceStatus
                 }
             }
         }
+        return 0;
     }
 	public function formObjectOptions($parameters, &$object, &$action, $hookmanager)
     {
@@ -113,9 +114,7 @@ class ActionsInvoiceStatus
             $token = newToken();
             $selected = array("", "", "", "", "", "", "");
             $selected[$object->status] = "selected";
-            print '<form method="post" action="'.dol_buildpath('/compta/facture/card.php?facid=' . $object->id . '&action=modif_status',1).'" id="status_change_form">
-                <input type="hidden" name="token" value="'.$token.'">
-                <input type="hidden" name="action" value="change_invoice_status">
+            print '<form method="post" action="'.dol_buildpath('/compta/facture/card.php?facid=' . $object->id . '&action=modif_status&token=' . $token,1).'" id="status_change_form">
                 <input type="hidden" name="invoice_id" value="' . $object->id . '">
                 <select name="new_status">
                     <option ' . $selected[0] .' value="0">Brouillon</option>
@@ -129,5 +128,6 @@ class ActionsInvoiceStatus
                 <input class="button" type="submit" value="Changer l\'état" id="submit_button">
             </form>';
         }
+        return 0;
     }
 }
