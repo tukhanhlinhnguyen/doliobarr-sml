@@ -105,21 +105,31 @@ class InterfaceWorkflowManager extends DolibarrTriggers
 			if (isModEnabled('facture') && !empty($conf->global->WORKFLOW_ORDER_AUTOCREATE_INVOICE)) {
 				include_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
 				$newobject = new Facture($this->db);
+				$result = $object->fetchObjectLinked($object->id, 'commande', null, 'facture');
+				$facture_id = array_values($object->linkedObjectsIds['facture'])[0];
 
-				$newobject->context['createfromorder'] = 'createfromorder';
-				$newobject->context['origin'] = $object->element;
-				$newobject->context['origin_id'] = $object->id;
-				$newobject->context['fk_statut'] = 1;
+				if($facture_id){
+					//invoice already exist, not creating new one
+				}else{
 
-				$newobject->createFromOrder($object, $user);
-				$newobject->validate($user);
-				$newobject->setUnpaid($user);
-				$ret = $newobject;
-				if ($ret < 0) {
-					$this->error = $newobject->error;
-					$this->errors[] = $newobject->error;
+					include_once DOL_DOCUMENT_ROOT.'/compta/facture/class/facture.class.php';
+					$newobject = new Facture($this->db);
+
+					$newobject->context['createfromorder'] = 'createfromorder';
+					$newobject->context['origin'] = $object->element;
+					$newobject->context['origin_id'] = $object->id;
+					$newobject->context['fk_statut'] = 1;
+
+					$newobject->createFromOrder($object, $user);
+					$newobject->validate($user);
+					$newobject->setUnpaid($user);
+					$ret = $newobject;
+					if ($ret < 0) {
+						$this->error = $newobject->error;
+						$this->errors[] = $newobject->error;
+					}
+					return $ret;
 				}
-				return $ret;
 			}
 		}
 
